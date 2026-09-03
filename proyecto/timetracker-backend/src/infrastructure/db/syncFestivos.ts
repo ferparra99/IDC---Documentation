@@ -1,6 +1,7 @@
 import { pool } from "./pool";
 import { FestivoRepository } from "../repositories/FestivoRepository";
 import { HolidaySyncService } from "../../application/services/HolidaySyncService";
+import { logger } from "../../shared/logger/logger";
 
 async function main() {
   const anios = process.argv.slice(2).map(Number).filter((n) => !Number.isNaN(n));
@@ -11,14 +12,14 @@ async function main() {
 
   const service = new HolidaySyncService(new FestivoRepository(pool));
   for (const anio of anios) {
-    console.log(`Sincronizando festivos de ${anio} ...`);
+    logger.info(`Sincronizando festivos de ${anio} ...`);
     await service.asegurarAnioSincronizado(anio);
   }
-  console.log("Listo.");
+  logger.info("Sincronización de festivos completada.");
   await pool.end();
 }
 
 main().catch((err) => {
-  console.error("Error sincronizando festivos:", err);
+  logger.error(err, "Error sincronizando festivos");
   process.exit(1);
 });

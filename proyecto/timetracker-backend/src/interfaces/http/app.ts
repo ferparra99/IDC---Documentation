@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { apiRouter } from "./routes";
 import { errorHandler } from "./middlewares/errorHandler";
+import { requestLogger } from "./middlewares/requestLogger";
 
 export function crearApp(): Express {
   const app = express();
@@ -10,6 +11,7 @@ export function crearApp(): Express {
   app.use(helmet());
   app.use(cors());
   app.use(express.json());
+  app.use(requestLogger);
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ data: { status: "ok" } });

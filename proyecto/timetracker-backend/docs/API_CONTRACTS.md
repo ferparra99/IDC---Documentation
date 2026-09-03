@@ -21,11 +21,37 @@ Convenciones de respuesta:
 { "email": "empleado@empresa.com", "password": "••••••" }
 
 // Response 200
-{ "data": { "token": "eyJ...", "usuario": { "id": "uuid", "nombre": "Ana Pérez", "rol": "empleado" } } }
+{
+  "data": {
+    "token": "eyJ...",
+    "refreshToken": "3f2a9c...",
+    "usuario": { "id": "uuid", "nombre": "Ana Pérez", "rol": "empleado" }
+  }
+}
 ```
+`token` es un JWT de vida corta (`JWT_EXPIRES_IN`, por defecto 1h) que va en `Authorization: Bearer` de cada request. `refreshToken` es un token opaco (no JWT) de 30 días, pensado para sesiones largas (app móvil, Fase 6) — se guarda del lado del cliente y solo se usa contra `/auth/refresh`.
 
 ### `POST /auth/refresh`
-Renueva el token antes de expirar. Sin body adicional (usa refresh token en cookie httpOnly o body, a definir en implementación).
+Renueva el token de acceso usando el refresh token. **Rota** el refresh token en cada uso (el anterior queda revocado) — el cliente debe reemplazar ambos valores guardados.
+```json
+// Request
+{ "refreshToken": "3f2a9c..." }
+
+// Response 200
+{ "data": { "token": "eyJ...(nuevo)", "refreshToken": "8b1d4e...(nuevo)" } }
+
+// Response 401 si el refresh token es inválido, ya fue usado (rotado) o expiró
+{ "error": { "code": "CREDENCIALES_INVALIDAS", "message": "El refresh token es inválido o expiró. Inicia sesión nuevamente." } }
+```
+
+### `POST /auth/logout`
+Revoca el refresh token (cierre de sesión real, no solo del lado del cliente).
+```json
+// Request
+{ "refreshToken": "3f2a9c..." }
+
+// Response 204 (sin contenido)
+```
 
 ---
 

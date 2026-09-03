@@ -1,5 +1,6 @@
 import { ConfiguracionRepository, ConfiguracionItem } from "../../infrastructure/repositories/ConfiguracionRepository";
 import { ValidacionError } from "../../domain/errors/DomainError";
+import { logger } from "../../shared/logger/logger";
 
 export class ConfigService {
   constructor(private readonly repo: ConfiguracionRepository) {}
@@ -21,5 +22,6 @@ export class ConfigService {
       throw new ValidacionError("El campo 'vigenteDesde' debe tener formato YYYY-MM-DD.");
     }
     await this.repo.crearNuevaVersion(clave, valor, vigenteDesde, actualizadoPorUsuarioId);
+    logger.info({ clave, valor, vigenteDesde, actualizadoPorUsuarioId }, "Variable de sistema actualizada");
   }
 }

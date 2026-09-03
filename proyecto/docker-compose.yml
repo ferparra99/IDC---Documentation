@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-timetracker}
+      POSTGRES_USER: ${POSTGRES_USER:-timetracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-timetracker}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-timetracker} -d ${POSTGRES_DB:-timetracker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./timetracker-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-timetracker}:${POSTGRES_PASSWORD:-timetracker}@db:5432/${POSTGRES_DB:-timetracker}
+      JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET en el archivo .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@empresa.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-CambiarEnProduccion123}
+      SEED_ADMIN_NOMBRE: ${SEED_ADMIN_NOMBRE:-Administrador Inicial}
+      # En "true" solo la primera vez que se levanta el proyecto (crea el
+      # usuario administrador y la configuración inicial). Déjalo en "false"
+      # el resto del tiempo: el seed no duplica datos si vuelve a correr,
+      # pero no hay necesidad de ejecutarlo en cada arranque del contenedor.
+      RUN_SEED_ON_START: ${RUN_SEED_ON_START:-false}
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+
+  frontend:
+    build:
+      context: ./timetracker-frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+
+volumes:
+  db_data:

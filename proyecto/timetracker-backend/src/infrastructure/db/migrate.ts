@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { pool } from "./pool";
+import { logger } from "../../shared/logger/logger";
 
 const CARPETA_MIGRACIONES = path.join(__dirname, "migrations");
 
@@ -24,24 +25,24 @@ async function main() {
 
     for (const archivo of archivos) {
       if (aplicadas.has(archivo)) {
-        console.log(`(sin cambios) ${archivo}`);
+        logger.debug(`(sin cambios) ${archivo}`);
         continue;
       }
       const sql = fs.readFileSync(path.join(CARPETA_MIGRACIONES, archivo), "utf-8");
-      console.log(`Aplicando ${archivo} ...`);
+      logger.info(`Aplicando migración ${archivo} ...`);
       await client.query("BEGIN");
       try {
         await client.query(sql);
         await client.query("INSERT INTO schema_migrations (nombre_archivo) VALUES ($1)", [archivo]);
         await client.query("COMMIT");
-        console.log(`  OK`);
+        logger.info(`Migración ${archivo} aplicada correctamente.`);
       } catch (err) {
         await client.query("ROLLBACK");
         throw err;
       }
     }
 
-    console.log("Migraciones al día.");
+    logger.info("Migraciones al día.");
   } finally {
     client.release();
     await pool.end();
@@ -49,6 +50,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Error ejecutando migraciones:", err);
+  logger.error(err, "Error ejecutando migraciones");
   process.exit(1);
 });

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { pool } from "./pool";
 import { env } from "../../shared/config/env";
 import { fechaBogotaHoy } from "../../shared/utils/tiempo";
+import { logger } from "../../shared/logger/logger";
 
 /**
  * Variables de sistema necesarias para el cálculo de horas de Fase 1
@@ -33,7 +34,7 @@ async function main() {
     let adminId: string;
     if (existentes.length > 0) {
       adminId = existentes[0].id;
-      console.log(`Usuario administrador ya existe (${env.seedAdminEmail}), no se duplica.`);
+      logger.info(`Usuario administrador ya existe (${env.seedAdminEmail}), no se duplica.`);
     } else {
       const passwordHash = await bcrypt.hash(env.seedAdminPassword, 10);
       const { rows } = await client.query(
@@ -42,7 +43,7 @@ async function main() {
         [env.seedAdminNombre, env.seedAdminEmail, passwordHash]
       );
       adminId = rows[0].id;
-      console.log(`Usuario administrador creado: ${env.seedAdminEmail}`);
+      logger.info(`Usuario administrador creado: ${env.seedAdminEmail}`);
     }
 
     // --- Configuración inicial (solo si no hay una versión vigente para esa clave) ---
@@ -52,7 +53,7 @@ async function main() {
         [clave]
       );
       if (rows.length > 0) {
-        console.log(`(sin cambios) configuración '${clave}' ya tiene una versión vigente.`);
+        logger.debug(`(sin cambios) configuración '${clave}' ya tiene una versión vigente.`);
         continue;
       }
       await client.query(
@@ -60,10 +61,10 @@ async function main() {
          VALUES ($1, $2, $3, $4)`,
         [clave, JSON.stringify(valor), hoy, adminId]
       );
-      console.log(`Configuración sembrada: ${clave} = ${JSON.stringify(valor)}`);
+      logger.info(`Configuración sembrada: ${clave} = ${JSON.stringify(valor)}`);
     }
 
-    console.log("Seed completado.");
+    logger.info("Seed completado.");
   } finally {
     client.release();
     await pool.end();
@@ -71,6 +72,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Error ejecutando seed:", err);
+  logger.error(err, "Error ejecutando seed");
   process.exit(1);
 });

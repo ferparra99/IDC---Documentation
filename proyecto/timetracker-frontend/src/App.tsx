@@ -5,10 +5,11 @@ import { AttendancePage } from "./pages/AttendancePage";
 import { CalendarPage } from "./pages/CalendarPage";
 import { LeavesPage } from "./pages/LeavesPage";
 import { TripsPage } from "./pages/TripsPage";
+import { ReportsPage } from "./pages/ReportsPage";
 
 function Shell() {
   const { usuario, logout } = useAuth();
-  const [tab, setTab] = useState<"fichaje" | "calendario" | "permisos" | "viajes">("fichaje");
+  const [tab, setTab] = useState<"fichaje" | "calendario" | "permisos" | "viajes" | "reportes">("fichaje");
 
   if (!usuario) return <LoginPage />;
 
@@ -29,12 +30,14 @@ function Shell() {
         <TabButton activo={tab === "calendario"} onClick={() => setTab("calendario")}>Calendario</TabButton>
         <TabButton activo={tab === "permisos"} onClick={() => setTab("permisos")}>Permisos</TabButton>
         <TabButton activo={tab === "viajes"} onClick={() => setTab("viajes")}>Viajes</TabButton>
+        <TabButton activo={tab === "reportes"} onClick={() => setTab("reportes")}>Reportes</TabButton>
       </nav>
 
       {tab === "fichaje" && <AttendancePage />}
       {tab === "calendario" && <CalendarPage />}
       {tab === "permisos" && <LeavesPage />}
       {tab === "viajes" && <TripsPage />}
+      {tab === "reportes" && <ReportsPage />}
     </div>
   );
 }

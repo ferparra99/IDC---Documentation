@@ -61,3 +61,43 @@
   - Backend y frontend compilan/buildean sin errores (verificado).
 - **Motivo:** Ejecutar la Fase 4 de la hoja de ruta (sección 9 de `REQUIREMENTS.md`): módulo de viajes (5.4).
 - **Referencia:** N/A
+
+## [2026-09-01] - Sistema de logging (regla de trabajo nueva)
+- **Autor:** Claude (junto con el usuario)
+- **Cambio:** El proyecto no tenía un sistema de logging — solo `console.log`/`console.error` dispersos. Se agrega un logger central (`pino`, `src/shared/logger/logger.ts`, equivalente a SLF4J/Logback de Java) con niveles `debug/info/warn/error`, formateado con color en desarrollo (`pino-pretty`) y JSON estructurado en producción. Se agrega `requestLogger` (middleware, vía `pino-http`) que registra automáticamente cada request HTTP. Se reemplazan TODOS los `console.*` existentes (`migrate.ts`, `seed.ts`, `syncFestivos.ts`, `server.ts`, `errorHandler.ts`) por el logger. Se agregan `logger.info`/`logger.warn` de eventos de negocio en `AuthService` (login), `AttendanceService` (iniciar/finalizar/editar jornada), `ConfigService` (actualizar variable), `PermisoService` (crear/enviar), `ViajeService` (crear/eliminar) y `HolidaySyncService` (sincronización de festivos).
+- **Nueva regla de trabajo obligatoria** (agregada a `REQUIREMENTS.md` sección 0, punto 4): todo código nuevo del backend, de aquí en adelante, debe usar el logger central en vez de `console.log`/`console.error` directo.
+- **Motivo:** Solicitud explícita del usuario para tener actividad visible en consola con niveles (equivalente a `log.info` de Java), y dejarlo como estándar para el código futuro.
+- **Referencia:** N/A
+
+## [2026-09-01] - Implementación Fase 5 (reportería Excel)
+- **Autor:** Claude (junto con el usuario)
+- **Cambio:**
+  - **Backend:** `ReportRepository` (consultas de solo lectura con JOIN a `usuarios` para el nombre del empleado, separado de los repositorios de dominio por responsabilidad distinta); `ExcelReportBuilder` (adaptador de infraestructura sobre `exceljs`, sin lógica de negocio) que genera un `.xlsx` con las hojas **"Horas laboradas"** (una fila por jornada finalizada, con desglose de horas y fila de totales) y **"Viajes laborados"** (una fila por viaje, con fila de totales), encabezados con estilo y autofiltro; `ReportService` orquesta ambos; endpoint `GET /reports/excel?desde&hasta&usuarioId`. Un empleado siempre exporta solo lo suyo (se ignora cualquier `usuarioId` distinto al propio); un administrador puede exportar el consolidado de todos los empleados omitiendo `usuarioId`. Probado generando un archivo de muestra y releyéndolo con `exceljs` para confirmar hojas, encabezados, conversión de horas a Bogotá 24h y totales correctos.
+  - **Frontend:** `ReportsPage` — selector de rango de fechas, checkbox para administradores ("solo mis registros" vs. consolidado), botón de descarga que dispara el `.xlsx` vía blob.
+  - Backend y frontend compilan/buildean sin errores (verificado).
+- **Motivo:** Ejecutar la Fase 5 de la hoja de ruta (sección 9 de `REQUIREMENTS.md`): reportería Excel (sección 6).
+- **Referencia:** N/A
+
+## [2026-09-01] - Implementación Fase 6 (preparación app móvil) — PROYECTO COMPLETO
+- **Autor:** Claude (junto con el usuario)
+- **Cambio:**
+  - Se hizo la revisión completa de arquitectura API-first pedida por esta fase; el resultado detallado queda en el nuevo `docs/MOBILE_READINESS.md`. Conclusión: el backend ya cumplía casi todo lo necesario (API versionada, sin sesión de servidor, respuestas uniformes `{data}`/`{error}`, hora explícita en Bogotá 24h, endpoint de salud); el único gap real para una app móvil de uso diario era la duración de la sesión.
+  - **Backend:** tabla `refresh_tokens` (migración `009_refresh_tokens.sql`, tokens opacos hasheados con SHA-256, revocables); `AuthService` ahora emite un access token corto (`JWT_EXPIRES_IN`, default reducido de 8h a **1h**) más un refresh token de 30 días con **rotación** en cada renovación (el usado se revoca, se emite uno nuevo); nuevos endpoints `POST /auth/refresh` y `POST /auth/logout` (revocación real de sesión). Documentado en `API_CONTRACTS.md` y `DATABASE_SCHEMA.md` (sección 8).
+  - **Frontend:** `api/client.ts` renueva automáticamente el access token ante un `401` (con deduplicación de refrescos concurrentes) y reintenta la request una vez; si el refresh también falla, limpia la sesión y notifica a `AuthContext` vía evento (`auth:sesion-expirada`) sin acoplar ambos módulos. `AuthContext.logout()` ahora revoca el refresh token en el backend (best-effort) además de limpiar el estado local. Este es el patrón de referencia que la futura app React Native debe replicar — por eso se implementó en el frontend web primero, como prueba de que funciona.
+  - Pendientes explícitos que quedaron documentados y **no** se resolvieron en esta fase (ver `MOBILE_READINESS.md` y `REQUIREMENTS.md` sección 10): restringir CORS por entorno antes de producción, endpoint de cambio de contraseña, gestión de sesiones/dispositivos activos, push notifications y sincronización offline (fuera de alcance de este proyecto).
+  - Backend y frontend compilan/buildean sin errores (verificado).
+- **Motivo:** Ejecutar la Fase 6, última de la hoja de ruta original (sección 9 de `REQUIREMENTS.md`). Con esta entrada, las 6 fases planeadas quedan completas.
+- **Referencia:** N/A
+
+## [2026-09-02] - Dockerización + documento único de ejecución
+- **Autor:** Claude (junto con el usuario)
+- **Cambio:**
+  - Se agrega `EJECUCION.md` en la raíz del proyecto: requisitos y pasos de ejecución, tanto manual como con Docker, en un solo documento (antes esta información vivía repartida y duplicada entre `README.md` raíz y los README de cada carpeta).
+  - **Docker:** se decidió usar **tres imágenes separadas** (backend, frontend, y Postgres oficial `postgres:16-alpine`) orquestadas con `docker-compose.yml` en la raíz, en vez de un único Dockerfile monolítico — patrón estándar dado que son piezas con tecnologías y ciclos de vida independientes (Node vs. nginx vs. Postgres), permite reconstruir/escalar cada una por separado.
+    - `timetracker-backend/Dockerfile`: build multi-stage (`deps` → `build` con `tsc` → `runtime`); la imagen final conserva `node_modules` completo y `src` porque los scripts de migración/seed/festivos corren con `ts-node` directo sobre `src` (mismo mecanismo que en local, sin duplicar lógica de migraciones para Docker). `docker-entrypoint.sh` corre migraciones → seed opcional (`RUN_SEED_ON_START`) → sincroniza festivos → arranca el servidor compilado.
+    - `timetracker-frontend/Dockerfile`: build multi-stage (`build` con Vite → `runtime` sirviendo el estático con `nginx:1.27-alpine`); `VITE_API_BASE_URL` se pasa como build-arg (Vite la "hornea" en el bundle, no es una variable de runtime).
+    - `docker-compose.yml` + `.env.example` (raíz): variables con valores por defecto razonables para desarrollo, excepto `JWT_SECRET` que es obligatoria a propósito (`${JWT_SECRET:?...}`, falla explícitamente si no se define).
+  - **Validación realizada** (sin Docker instalado en el entorno de trabajo, ver limitación abajo): se replicaron manualmente los pasos de cada stage del Dockerfile — `npm ci` + `npm run build` del backend y del frontend funcionan igual que en local; se confirmó que `VITE_API_BASE_URL` queda efectivamente incrustada en el bundle de producción; se corrió `migrate.ts` vía `ts-node` con credenciales falsas y falló exactamente donde debía (al conectar a una BD inexistente), confirmando que no hay errores de rutas/módulos en el mecanismo de migraciones dentro de la imagen.
+  - **Limitación documentada explícitamente** (en `EJECUCION.md` sección 5): no se ejecutó un `docker build`/`docker compose up` real de extremo a extremo porque este entorno de trabajo no tiene Docker disponible. La configuración sigue patrones estándar y probados, pero se le pidió al usuario que valide el primer `docker compose up --build` él mismo.
+- **Motivo:** Solicitud explícita del usuario: un documento único de requerimientos/ejecución, y una configuración de Docker para el proyecto completo.
+- **Referencia:** N/A

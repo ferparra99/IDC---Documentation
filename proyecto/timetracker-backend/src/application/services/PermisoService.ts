@@ -7,6 +7,7 @@ import { NuevoPermisoDTO, PermisoProps } from "../../domain/entities/PermisoType
 import { NoAutorizadoError, NoEncontradoError, ValidacionError } from "../../domain/errors/DomainError";
 import { aUsuarioPublico, UsuarioPublico } from "../../domain/entities/Usuario";
 import { obtenerConfiguracionVigente } from "./ConfiguracionVigenteFactory";
+import { logger } from "../../shared/logger/logger";
 
 export interface PreviewPermisoDTO {
   empleado: UsuarioPublico;
@@ -24,7 +25,9 @@ export class PermisoService {
   async crear(usuarioId: string, dto: NuevoPermisoDTO): Promise<PermisoProps> {
     await this.validarContraJornadaDelDia(usuarioId, dto);
     const entidad = Permiso.crear("", usuarioId, dto);
-    return this.permisos.crear(entidad.toProps());
+    const guardado = await this.permisos.crear(entidad.toProps());
+    logger.info({ usuarioId, permisoId: guardado.id, tipo: guardado.tipo, fecha: guardado.fechaSolicitud }, "Permiso creado (BORRADOR)");
+    return guardado;
   }
 
   async editar(id: string, usuarioId: string, dto: NuevoPermisoDTO): Promise<PermisoProps> {
@@ -46,7 +49,9 @@ export class PermisoService {
     const existente = await this.obtenerPropio(id, usuarioId, false);
     const entidad = Permiso.desdeProps(existente);
     entidad.enviar();
-    return this.permisos.guardar(entidad.toProps());
+    const guardado = await this.permisos.guardar(entidad.toProps());
+    logger.info({ usuarioId, permisoId: guardado.id }, "Permiso enviado");
+    return guardado;
   }
 
   async listar(usuarioId: string, desde?: string, hasta?: string): Promise<PermisoProps[]> {

@@ -13,6 +13,13 @@
    - Diseño orientado a objetos: encapsulamiento, herencia solo cuando aporte valor real, polimorfismo, composición sobre herencia cuando aplique.
    - Buenas prácticas generales: nombres descriptivos, funciones pequeñas y con una sola responsabilidad, evitar duplicación (DRY), manejo explícito de errores, cobertura de pruebas para lógica de negocio crítica (cálculo de horas, recargos, validaciones).
 3. **Trazabilidad de cambios obligatoria.** Cada cambio debe quedar registrado en `CHANGELOG.md` (o tabla de trazabilidad, ver sección 8) con: fecha, autor/agente, módulo afectado, descripción del cambio, motivo y referencia (issue/ticket si aplica). No se aceptan cambios "silenciosos".
+4. **Logging obligatorio, nunca `console.log`/`console.error` directo.** Todo código del backend usa el logger central (`src/shared/logger/logger.ts`, basado en pino — ver detalle en `timetracker-backend/README.md`), con el nivel apropiado:
+   - `logger.info(...)` para eventos de negocio relevantes (login, jornada iniciada/finalizada, permiso creado/enviado, viaje registrado, configuración actualizada) — el equivalente directo a un `log.info` de Java/SLF4J.
+   - `logger.warn(...)` para situaciones anómalas pero no rotas (intentos de acceso no autorizado, credenciales inválidas).
+   - `logger.error(err, "mensaje")` para excepciones no controladas, siempre pasando el error como primer argumento.
+   - `logger.debug(...)` para detalle de diagnóstico que no interesa en producción.
+   - Toda request HTTP queda registrada automáticamente por el middleware `requestLogger` (método, ruta, status, duración) — no hay que loguearla manualmente en cada controlador.
+   - Este requisito aplica a todo código nuevo de aquí en adelante (scripts CLI incluidos), no solo a los servicios de aplicación.
 
 ---
 
@@ -39,6 +46,7 @@ Aplicación web (con evolución futura a app móvil nativa) para la gestión del
 | Autenticación | JWT (roles: empleado, administrador — extensible) |
 | Reportería Excel | Librería tipo `exceljs` en backend |
 | Despliegue objetivo | Web responsive ahora; arquitectura API-first para permitir consumo desde app móvil nativa (React Native sugerido) en una fase posterior |
+| Contenerización | Docker (build multi-stage por servicio) + Docker Compose para orquestar `db`/`backend`/`frontend` — ver `EJECUCION.md` en la raíz y `timetracker-backend/Dockerfile` / `timetracker-frontend/Dockerfile` |
 
 **Justificación de arquitectura:** al planearse una app móvil nativa a futuro, el backend se diseña **API-first** (REST, sin lógica de negocio en el frontend) para que tanto la web como la futura app móvil consuman los mismos endpoints sin duplicar reglas de negocio.
 
@@ -223,16 +231,16 @@ Toda edición manual sobre registros de horas, permisos o viajes debe guardarse 
 2. **Fase 2 — Visualización:** calendario y edición de horas con auditoría (5.2). **✅ Completada** — backend en `timetracker-backend/` (festivos, audit_log, endpoint de calendario) y primera versión de frontend en `timetracker-frontend/` (React + Vite + TypeScript).
 3. **Fase 3 — Permisos:** módulo de solicitud de permisos con previsualización (5.3). **✅ Completada** — ver `timetracker-backend/docs/API_CONTRACTS.md` sección 5 y `timetracker-frontend/src/pages/LeavesPage.tsx`.
 4. **Fase 4 — Viajes:** módulo de registro de viajes (5.4). **✅ Completada** — ver `timetracker-backend/docs/API_CONTRACTS.md` sección 6 y `timetracker-frontend/src/pages/TripsPage.tsx`. Se sembró la variable de sistema `valorViajePorDefecto` (antes reservada, sin usar).
-3. **Fase 3 — Permisos:** módulo de solicitud de permisos con previsualización (5.3).
-4. **Fase 4 — Viajes:** módulo de registro de viajes (5.4).
-5. **Fase 5 — Reportería:** exportación a Excel multi-hoja (6).
-6. **Fase 6 — Preparación app móvil:** validar que todos los endpoints sean consumibles desde React Native sin cambios de lógica.
+5. **Fase 5 — Reportería:** exportación a Excel multi-hoja (6). **✅ Completada** — `GET /reports/excel` genera un `.xlsx` con hojas "Horas laboradas" y "Viajes laborados" (`ExcelReportBuilder`, librería `exceljs`), filtrable por rango de fechas y por empleado; un administrador puede exportar el consolidado de todos los empleados. Frontend: `ReportsPage`.
+6. **Fase 6 — Preparación app móvil:** validar que todos los endpoints sean consumibles desde React Native sin cambios de lógica. **✅ Completada** — ver `timetracker-backend/docs/MOBILE_READINESS.md` (checklist completo). Se agregó lo único que realmente faltaba para sesiones móviles largas: refresh tokens revocables (`POST /auth/refresh`, `POST /auth/logout`, tabla `refresh_tokens`), con rotación en cada renovación. El frontend web se actualizó como implementación de referencia del patrón de renovación automática que la futura app React Native debe replicar.
 
 ---
 
 ## 10. Pendientes / decisiones abiertas
 
 - [ ] Definir si el módulo de aprobación de permisos (mencionado pero fuera de alcance) vivirá en el mismo backend o como servicio aparte.
+- [ ] Restringir CORS por entorno antes de producción (hoy abierto con `cors()`; ver `MOBILE_READINESS.md`).
+- [ ] Endpoint de cambio de contraseña y gestión de sesiones/dispositivos activos (revocar refresh tokens individuales desde la UI).
 
 ## 10.1 Documentos complementarios
 
@@ -241,6 +249,7 @@ Este documento es la fuente única de verdad a nivel de alcance y reglas de nego
 - **`DATABASE_SCHEMA.md`** — esquema de base de datos (tablas, columnas, índices, versionamiento de configuración).
 - **`API_CONTRACTS.md`** — contratos REST (endpoints, requests/responses, códigos de error).
 - **`STATE_MACHINE.md`** — detalle formal de la máquina de estados de la jornada (diagrama, casos borde, referencia de implementación del patrón State).
+- **`MOBILE_READINESS.md`** — checklist de la Fase 6: qué se revisó y qué se ajustó para que el backend sea consumible desde una app React Native sin cambios de lógica.
 
 ### Decisiones ya tomadas (ver detalle en sección 11 y en `STATE_MACHINE.md`)
 - ~~Gestor de estado en frontend~~ → **Patrón de diseño State**, sincronizado con backend.

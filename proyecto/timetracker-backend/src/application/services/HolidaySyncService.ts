@@ -1,5 +1,6 @@
 import { FestivoRepository } from "../../infrastructure/repositories/FestivoRepository";
 import { ColombianHolidaysService } from "../../domain/services/ColombianHolidaysService";
+import { logger } from "../../shared/logger/logger";
 
 /**
  * Se asegura de que la tabla `festivos` tenga los festivos calculados para
@@ -18,5 +19,6 @@ export class HolidaySyncService {
     if (yaExiste) return;
     const calculados = this.calculadora.calcularParaAnio(anio);
     await this.festivos.guardarVarios(calculados);
+    logger.info(`Festivos de ${anio} sincronizados (${calculados.length} festivos calculados).`);
   }
 }

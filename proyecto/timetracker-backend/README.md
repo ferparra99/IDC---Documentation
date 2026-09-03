@@ -48,6 +48,20 @@ Esta separación es la que permite cumplir SOLID:
 - **I**: los controladores dependen de servicios de aplicación, no de repositorios completos.
 - **D**: el dominio (`RegistroJornada`, `CalculadoraHorasService`) no importa nada de `pg` ni de `express`.
 
+## Logging
+
+El proyecto usa un logger central (`pino`, en `src/shared/logger/logger.ts`) — el equivalente a SLF4J/Logback en Java. **Regla obligatoria del proyecto** (ver `docs/REQUIREMENTS.md` sección 0): nunca usar `console.log`/`console.error` directamente; siempre `logger.info/warn/error/debug`.
+
+```bash
+LOG_LEVEL=debug npm run dev   # más detalle en desarrollo
+LOG_LEVEL=warn npm run dev    # solo advertencias y errores
+```
+
+- En desarrollo se imprime formateado y con color (`pino-pretty`).
+- En producción (`NODE_ENV=production`) se imprime JSON estructurado, una línea por evento, listo para un colector de logs.
+- Toda request HTTP se registra automáticamente (método, ruta, status, duración) vía el middleware `requestLogger`.
+- Los servicios de aplicación registran eventos de negocio clave: login (éxito/fallo), jornada iniciada/finalizada/editada, permiso creado/enviado, viaje registrado/eliminado, configuración actualizada.
+
 ## Endpoints principales (ver `docs/API_CONTRACTS.md` para el detalle completo)
 
 | Método | Ruta | Descripción |

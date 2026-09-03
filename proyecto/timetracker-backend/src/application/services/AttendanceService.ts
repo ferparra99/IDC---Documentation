@@ -12,6 +12,7 @@ import {
 } from "../../domain/errors/DomainError";
 import { fechaBogotaHoy, esFinDeSemanaBogotaFecha } from "../../shared/utils/tiempo";
 import { obtenerConfiguracionVigente } from "./ConfiguracionVigenteFactory";
+import { logger } from "../../shared/logger/logger";
 
 export interface EstadoHoyDTO {
   estado: RegistroJornadaProps["estado"];
@@ -50,7 +51,9 @@ export class AttendanceService {
     const entidad = RegistroJornada.crear(props, config, esFinDeSemanaBogotaFecha(fecha));
     entidad.iniciar();
 
-    return this.registros.crear(entidad.toProps());
+    const guardado = await this.registros.crear(entidad.toProps());
+    logger.info({ usuarioId, registroId: guardado.id, fecha }, "Jornada iniciada");
+    return guardado;
   }
 
   async finalizarJornada(usuarioId: string, descripcionProyectos: string): Promise<RegistroJornadaProps> {
@@ -72,7 +75,12 @@ export class AttendanceService {
     const entidad = RegistroJornada.crear(objetivo, config, esFinDeSemanaBogotaFecha(objetivo.fecha));
     entidad.finalizar(descripcionProyectos);
 
-    return this.registros.guardar(entidad.toProps());
+    const guardado = await this.registros.guardar(entidad.toProps());
+    logger.info(
+      { usuarioId, registroId: guardado.id, fecha: guardado.fecha, horasTotales: guardado.horasOrdinarias + guardado.horasExtraDiurnas + guardado.horasExtraNocturnas + guardado.horasRecargoNocturno + guardado.horasDominicalFestivo },
+      "Jornada finalizada"
+    );
+    return guardado;
   }
 
   async listar(usuarioId: string, desde: string, hasta: string): Promise<RegistroJornadaProps[]> {
@@ -126,6 +134,11 @@ export class AttendanceService {
       valorNuevo: guardado,
       motivo,
     });
+
+    logger.info(
+      { registroId: guardado.id, solicitanteId, motivo },
+      "Jornada editada manualmente (corrección auditada)"
+    );
 
     return guardado;
   }

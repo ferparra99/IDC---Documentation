@@ -3,6 +3,7 @@ import { ConfiguracionRepository } from "../../infrastructure/repositories/Confi
 import { Viaje } from "../../domain/entities/Viaje";
 import { NuevoViajeDTO, ViajeProps } from "../../domain/entities/ViajeTypes";
 import { NoAutorizadoError, NoEncontradoError } from "../../domain/errors/DomainError";
+import { logger } from "../../shared/logger/logger";
 
 const VALOR_POR_DEFECTO_RESPALDO = 5000;
 
@@ -15,7 +16,9 @@ export class ViajeService {
   async crear(usuarioId: string, dto: NuevoViajeDTO): Promise<ViajeProps> {
     const valorPorDefecto = await this.obtenerValorPorDefecto();
     const entidad = Viaje.crear("", usuarioId, dto, valorPorDefecto);
-    return this.viajes.crear(entidad.toProps());
+    const guardado = await this.viajes.crear(entidad.toProps());
+    logger.info({ usuarioId, viajeId: guardado.id, fecha: guardado.fecha, valor: guardado.valor }, "Viaje registrado");
+    return guardado;
   }
 
   async editar(id: string, usuarioId: string, esAdmin: boolean, dto: NuevoViajeDTO): Promise<ViajeProps> {
@@ -29,6 +32,7 @@ export class ViajeService {
   async eliminar(id: string, usuarioId: string, esAdmin: boolean): Promise<void> {
     await this.obtenerPropio(id, usuarioId, esAdmin);
     await this.viajes.eliminar(id);
+    logger.info({ usuarioId, viajeId: id }, "Viaje eliminado");
   }
 
   async listar(usuarioId: string, desde: string, hasta: string): Promise<ViajeProps[]> {

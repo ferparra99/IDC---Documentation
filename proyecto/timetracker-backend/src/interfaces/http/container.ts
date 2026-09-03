@@ -1,11 +1,13 @@
 import { pool } from "../../infrastructure/db/pool";
 import { UsuarioRepository } from "../../infrastructure/repositories/UsuarioRepository";
+import { RefreshTokenRepository } from "../../infrastructure/repositories/RefreshTokenRepository";
 import { ConfiguracionRepository } from "../../infrastructure/repositories/ConfiguracionRepository";
 import { RegistroJornadaRepository } from "../../infrastructure/repositories/RegistroJornadaRepository";
 import { FestivoRepository } from "../../infrastructure/repositories/FestivoRepository";
 import { AuditLogRepository } from "../../infrastructure/repositories/AuditLogRepository";
 import { PermisoRepository } from "../../infrastructure/repositories/PermisoRepository";
 import { ViajeRepository } from "../../infrastructure/repositories/ViajeRepository";
+import { ReportRepository } from "../../infrastructure/repositories/ReportRepository";
 import { AuthService } from "../../application/services/AuthService";
 import { ConfigService } from "../../application/services/ConfigService";
 import { AttendanceService } from "../../application/services/AttendanceService";
@@ -13,6 +15,7 @@ import { HolidaySyncService } from "../../application/services/HolidaySyncServic
 import { CalendarService } from "../../application/services/CalendarService";
 import { PermisoService } from "../../application/services/PermisoService";
 import { ViajeService } from "../../application/services/ViajeService";
+import { ReportService } from "../../application/services/ReportService";
 
 /**
  * Composition root: único lugar donde se instancian repositorios y servicios
@@ -21,21 +24,24 @@ import { ViajeService } from "../../application/services/ViajeService";
  * (Dependency Inversion).
  */
 const usuarioRepository = new UsuarioRepository(pool);
+const refreshTokenRepository = new RefreshTokenRepository(pool);
 const configuracionRepository = new ConfiguracionRepository(pool);
 const registroJornadaRepository = new RegistroJornadaRepository(pool);
 const festivoRepository = new FestivoRepository(pool);
 const auditLogRepository = new AuditLogRepository(pool);
 const permisoRepository = new PermisoRepository(pool);
 const viajeRepository = new ViajeRepository(pool);
+const reportRepository = new ReportRepository(pool);
 
 const holidaySyncService = new HolidaySyncService(festivoRepository);
 
 export const container = {
-  authService: new AuthService(usuarioRepository),
+  authService: new AuthService(usuarioRepository, refreshTokenRepository),
   configService: new ConfigService(configuracionRepository),
   attendanceService: new AttendanceService(registroJornadaRepository, configuracionRepository, auditLogRepository),
   calendarService: new CalendarService(registroJornadaRepository, festivoRepository, holidaySyncService),
   permisoService: new PermisoService(permisoRepository, registroJornadaRepository, usuarioRepository, configuracionRepository),
   viajeService: new ViajeService(viajeRepository, configuracionRepository),
+  reportService: new ReportService(reportRepository),
   holidaySyncService,
 };

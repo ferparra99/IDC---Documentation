@@ -134,6 +134,21 @@ Tabla central del módulo de fichaje (5.1) y calendario (5.2).
 
 ---
 
+## 8. `refresh_tokens` (Fase 6 — sesiones largas para app móvil)
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | UUID PK | |
+| `usuario_id` | UUID FK → `usuarios.id` | |
+| `token_hash` | VARCHAR(64) UNIQUE | SHA-256 hex del token; el token en texto plano nunca se guarda, solo se le entrega al cliente una vez |
+| `expira_en` | TIMESTAMPTZ | por defecto 30 días desde su emisión |
+| `revocado` | BOOLEAN | `true` tras logout o tras usarse en un `refresh` (rotación) |
+| `creado_en` | TIMESTAMPTZ | |
+
+Ver `docs/MOBILE_READINESS.md` para el razonamiento completo de por qué se agregó (sesiones largas + revocación real, algo que un JWT solo no permite).
+
+---
+
 ## Diagrama relacional (resumen textual)
 
 ```
@@ -141,6 +156,7 @@ usuarios (1) ──< (N) registro_jornada
 usuarios (1) ──< (N) permisos
 usuarios (1) ──< (N) viajes
 usuarios (1) ──< (N) audit_log            (usuario_id = quién editó)
+usuarios (1) ──< (N) refresh_tokens
 configuracion_sistema                     (independiente, versionada por fecha)
 festivos                                  (independiente, consultada por fecha)
 ```
