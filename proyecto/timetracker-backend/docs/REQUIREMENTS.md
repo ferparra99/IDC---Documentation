@@ -46,7 +46,6 @@ Aplicación web (con evolución futura a app móvil nativa) para la gestión del
 | Autenticación | JWT (roles: empleado, administrador — extensible) |
 | Reportería Excel | Librería tipo `exceljs` en backend |
 | Despliegue objetivo | Web responsive ahora; arquitectura API-first para permitir consumo desde app móvil nativa (React Native sugerido) en una fase posterior |
-| Contenerización | Docker (build multi-stage por servicio) + Docker Compose para orquestar `db`/`backend`/`frontend` — ver `EJECUCION.md` en la raíz y `timetracker-backend/Dockerfile` / `timetracker-frontend/Dockerfile` |
 
 **Justificación de arquitectura:** al planearse una app móvil nativa a futuro, el backend se diseña **API-first** (REST, sin lógica de negocio en el frontend) para que tanto la web como la futura app móvil consuman los mismos endpoints sin duplicar reglas de negocio.
 

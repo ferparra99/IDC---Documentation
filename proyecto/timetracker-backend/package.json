@@ -9,7 +9,10 @@
     "start": "node dist/interfaces/http/server.js",
     "migrate": "ts-node src/infrastructure/db/migrate.ts",
     "seed": "ts-node src/infrastructure/db/seed.ts",
-    "sync:festivos": "ts-node src/infrastructure/db/syncFestivos.ts"
+    "sync:festivos": "ts-node src/infrastructure/db/syncFestivos.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -35,6 +38,10 @@
     "pino-pretty": "^11.2.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^2.0.5",
+    "@vitest/coverage-v8": "^2.0.5",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
   }
 }
