@@ -2,15 +2,15 @@
 set -e
 
 echo "[entrypoint] Ejecutando migraciones..."
-npm run migrate
+npm run migrate:prod
 
 if [ "$RUN_SEED_ON_START" = "true" ]; then
   echo "[entrypoint] RUN_SEED_ON_START=true -> ejecutando seed..."
-  npm run seed
+  npm run seed:prod
 fi
 
 echo "[entrypoint] Sincronizando festivos del año actual y el siguiente..."
-npm run sync:festivos || echo "[entrypoint] Aviso: no se pudo sincronizar festivos (no bloquea el arranque)"
+npm run sync:festivos:prod || echo "[entrypoint] Aviso: no se pudo sincronizar festivos (no bloquea el arranque)"
 
 echo "[entrypoint] Iniciando servidor..."
 exec "$@"

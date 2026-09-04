@@ -10,6 +10,9 @@
     "migrate": "ts-node src/infrastructure/db/migrate.ts",
     "seed": "ts-node src/infrastructure/db/seed.ts",
     "sync:festivos": "ts-node src/infrastructure/db/syncFestivos.ts",
+    "migrate:prod": "node dist/infrastructure/db/migrate.js",
+    "seed:prod": "node dist/infrastructure/db/seed.js",
+    "sync:festivos:prod": "node dist/infrastructure/db/syncFestivos.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

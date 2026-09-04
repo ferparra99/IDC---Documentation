@@ -1,0 +1,46 @@
+# --- Env (secretos) ---
+# Ignora cualquier .env real, pero permite los .env.example de referencia
+.env
+!.env.example
+.env.local
+.env.*.local
+
+# --- Dependencias ---
+node_modules/
+# package-lock.json se commitea a proposito (builds reproducibles) — no ignorar
+# si usas pnpm/yarn descomenta:
+# pnpm-lock.yaml
+# yarn.lock
+
+# --- Build ---
+dist/
+build/
+.next/
+out/
+coverage/
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# --- IDE / OS ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Docker volúmenes locales ---
+# (no aplica al volumen nombrado db_data, pero evita dumps locales)
+*.dump
+*.sql.gz
+
+# --- Temp ---
+tmp/
+temp/
+.opencode/

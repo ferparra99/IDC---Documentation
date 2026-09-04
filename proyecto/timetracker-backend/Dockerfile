@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# ---- Stage 1: instalar dependencias (incluye devDependencies, se necesitan para compilar) ----
+# ---- Stage 1: dependencias completas (incluye devDependencies, para compilar) ----
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
@@ -11,26 +11,33 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN npm run build \
+  # tsc no copia archivos que no sean .ts: las migraciones .sql se copian
+  # a mano para que el runtime compilado (dist/infrastructure/db/migrate.js)
+  # las encuentre con la misma lógica de rutas relativas que en desarrollo.
+  && cp -r src/infrastructure/db/migrations dist/infrastructure/db/migrations
 
-# ---- Stage 3: imagen final de ejecución ----
-# Nota: se conserva node_modules completo (con devDependencies) y la carpeta
-# `src` porque los scripts `migrate`/`seed`/`sync:festivos` corren con
-# `ts-node` directamente sobre `src` (así leen los .sql de las migraciones
-# sin necesidad de un paso extra de copia). Es una imagen más pesada que si
-# solo se copiara `dist` + dependencias de producción, a cambio de mantener
-# un único mecanismo de migraciones (el mismo en local y en Docker) — para
-# el tamaño de este proyecto es un trade-off razonable; si el tamaño de
-# imagen se vuelve un problema, la migración a un runner de migraciones
-# compilado es el siguiente paso natural.
+# ---- Stage 3: dependencias SOLO de producción (más liviana, sin ts-node/typescript) ----
+FROM node:20-alpine AS deps-prod
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# ---- Stage 4: imagen final de ejecución ----
+# Corre todo (servidor + migraciones + seed + sync de festivos) desde JS ya
+# compilado con `node`, nunca con `ts-node`. Se decidió así después de que
+# `ts-node` fallara en tiempo de ejecución dentro de esta imagen base
+# (`ERR_UNKNOWN_FILE_EXTENSION` al intentar cargar un .ts) — en vez de pelear
+# con el registro del loader de ts-node dentro del contenedor, se elimina la
+# dependencia por completo en runtime: además dejó la imagen final más
+# liviana y segura (sin `typescript`/`ts-node` en producción).
 FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps-prod /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package*.json ./
-COPY src ./src
 COPY docker-entrypoint.sh ./
 
 RUN chmod +x docker-entrypoint.sh \
