@@ -67,9 +67,42 @@ Abre `http://localhost:5173`.
 
 ---
 
-## 3. Ejecución con Docker
+## 3. Ejecución con Docker — Elige tu backend
 
-Todo el proyecto (Postgres + backend + frontend) se levanta con un solo comando desde la raíz (`proyecto/`), usando `docker-compose.yml`.
+Este proyecto ahora tiene **dos backends intercambiables** (mismo frontend, misma DB, mismos contratos `/api/v1`):
+
+| Backend | Carpeta | Stack | Imagen |
+|---|---|---|---|
+| Node (original) | `timetracker-backend/` | Node 20 + Express + TypeScript | `timetracker-backend` |
+| Spring Boot (clon) | `timetracker-backend-springboot/` | Java 21 + Spring Boot 3.3 + JPA + Flyway | `timetracker-backend-springboot` |
+
+**Debes escoger uno a la vez** (comparten puerto `3000` y volumen `db_data`).
+
+### Opción 3a — Backend Node (por defecto, retrocompatible)
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.node.yml up --build
+# o simplemente (docker-compose.yml ya apunta a Node por defecto):
+docker compose up --build
+```
+
+### Opción 3b — Backend Spring Boot
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.spring.yml up --build
+```
+
+Cambiar de uno a otro:
+```bash
+docker compose down
+docker compose -f docker-compose.yml -f docker-compose.spring.yml up --build
+```
+
+> Ambos usan el mismo `db_data` y el mismo `JWT_SECRET`, así que tu usuario admin y tus jornadas se preservan al cambiar de backend (esquema Flyway idéntico, migraciones V1-V9 = 001-009 Node).
+
+## 3c. Ejecución con Docker (detalle genérico)
+
+Todo el proyecto (Postgres + backend elegido + frontend) se levanta con un solo comando desde la raíz (`proyecto/`), usando `docker-compose.yml` + el override del backend.
 
 ### 3.1 Configurar variables de entorno
 
@@ -134,10 +167,11 @@ docker compose down -v
 
 ### 3.5 Cómo está armado (por si necesitas tocarlo)
 
-- `docker-compose.yml` (raíz): orquesta los 3 servicios (`db`, `backend`, `frontend`).
-- `timetracker-backend/Dockerfile`: build multi-stage (compila TypeScript, imagen final corre `docker-entrypoint.sh`, que ejecuta migraciones → opcionalmente seed → sincroniza festivos → arranca el servidor).
+- `docker-compose.yml` (raíz): orquesta los 3 servicios (`db`, `backend`, `frontend`). `backend` es genérico y se concreta con `docker-compose.node.yml` o `docker-compose.spring.yml`.
+- `timetracker-backend/Dockerfile`: Node, build multi-stage (compila TypeScript, imagen final corre `docker-entrypoint.sh` con `node` sobre JS compilado).
+- `timetracker-backend-springboot/Dockerfile`: Spring Boot, build multi-stage (`maven:3.9-eclipse-temurin-21` → `eclipse-temurin:21-jre-alpine`, `mvn package` → `java -jar app.jar`, Flyway auto-migra al arrancar).
 - `timetracker-frontend/Dockerfile`: build multi-stage (compila el bundle de Vite con la URL del backend "horneada" en build time vía `VITE_API_BASE_URL`, se sirve con `nginx`).
-- Se optó por **3 imágenes separadas** en vez de un único Dockerfile monolítico, porque backend/frontend/DB son piezas independientes con ciclos de vida y tecnologías distintas (Node vs. nginx vs. Postgres) — es el patrón estándar para este tipo de arquitectura y permite reconstruir/escalar cada una por separado.
+- Se optó por **3 imágenes separadas** en vez de un único Dockerfile monolítico, porque backend/frontend/DB son piezas independientes con ciclos de vida y tecnologías distintas — es el patrón estándar.
 
 ### 3.6 Ejecutar comandos sueltos dentro del contenedor del backend
 

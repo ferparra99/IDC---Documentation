@@ -17,22 +17,29 @@ Aplicación para la gestión del tiempo laboral de empleados en Colombia: fichaj
 | 5 | Reportería Excel | ✅ | ✅ `ReportsPage` |
 | 6 | Preparación para app móvil nativa (sesiones largas con refresh token) | ✅ | ✅ (patrón de referencia en `api/client.ts`) |
 
-Transversal: sistema de logging (`pino`) en todo el backend — ver `timetracker-backend/README.md` sección Logging.
+Backends: **Node y Spring Boot son intercambiables** — mismo frontend (`VITE_API_BASE_URL`), misma DB y mismos contratos `/api/v1`. Elige uno con `docker-compose.*.yml` (ver `EJECUCION.md`).
+Transversal: sistema de logging (`pino` en Node, `SLF4J/Logback` en Spring) en todo el backend.
 
 ## Estructura del repositorio
 
 ```
 proyecto/
-  docker-compose.yml       Orquesta db + backend + frontend (ver EJECUCION.md)
-  .env.example              Variables para docker-compose
-  EJECUCION.md               Requisitos y pasos de ejecución (manual y Docker)
-  timetracker-backend/     API REST — Node.js + Express + TypeScript + PostgreSQL
+  docker-compose.yml              Orquesta db + backend + frontend (ver EJECUCION.md)
+  docker-compose.node.yml         Override backend Node
+  docker-compose.spring.yml       Override backend Spring Boot
+  .env.example                     Variables para docker-compose
+  EJECUCION.md                      Requisitos y pasos de ejecución (manual y Docker, elige backend)
+  timetracker-backend/            API REST — Node.js + Express + TypeScript + PostgreSQL
     Dockerfile, docker-entrypoint.sh
-    docs/                  REQUIREMENTS.md, DATABASE_SCHEMA.md, API_CONTRACTS.md,
-                            STATE_MACHINE.md, MOBILE_READINESS.md, CHANGELOG.md
-  timetracker-frontend/    App web — React + Vite + TypeScript
+    docs/                         REQUIREMENTS.md, DATABASE_SCHEMA.md, API_CONTRACTS.md,
+                                    STATE_MACHINE.md, MOBILE_READINESS.md, CHANGELOG.md
+  timetracker-backend-springboot/ API REST — Java 21 + Spring Boot 3.3 + JPA + Flyway + PostgreSQL (clon)
+    Dockerfile, docker-entrypoint.sh
+    src/main/java/com/idc/timetracker/{common,modules/*,health}
+    src/main/resources/db/migration/  V1-V9 (copia literal 001-009 Node)
+  timetracker-frontend/           App web — React + Vite + TypeScript
     Dockerfile, nginx.conf
-    src/pages/             LoginPage, AttendancePage, CalendarPage, LeavesPage, TripsPage, ReportsPage
+    src/pages/                    LoginPage, AttendancePage, CalendarPage, LeavesPage, TripsPage, ReportsPage
 ```
 
 Cada carpeta tiene su propio `README.md` con detalle específico. Para requisitos y pasos de ejecución (manual **o** con Docker), ver **[`EJECUCION.md`](./EJECUCION.md)**.

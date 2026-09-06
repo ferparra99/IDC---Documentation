@@ -18,6 +18,15 @@ build/
 .next/
 out/
 coverage/
+target/
+*.jar
+*.class
+
+# --- Frontend/backend artefactos ---
+proyecto/timetracker-frontend/dist/
+proyecto/timetracker-frontend/tsconfig.tsbuildinfo
+proyecto/timetracker-backend/dist/
+proyecto/timetracker-backend-springboot/target/
 
 # --- Logs ---
 npm-debug.log*
