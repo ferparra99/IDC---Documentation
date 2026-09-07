@@ -8,6 +8,8 @@ spring:
     password: ${POSTGRES_PASSWORD:timetracker}
     hikari:
       maximum-pool-size: 10
+      data-source-properties:
+        stringtype: unspecified
   jpa:
     hibernate:
       ddl-auto: validate
