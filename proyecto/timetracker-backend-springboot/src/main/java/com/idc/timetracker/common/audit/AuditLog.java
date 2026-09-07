@@ -2,6 +2,8 @@ package com.idc.timetracker.common.audit;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -33,9 +35,11 @@ public class AuditLog {
     @Builder.Default
     private Instant fechaCambio = Instant.now();
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "valor_anterior", nullable = false, columnDefinition = "jsonb")
     private String valorAnterior;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "valor_nuevo", nullable = false, columnDefinition = "jsonb")
     private String valorNuevo;
 

@@ -2,6 +2,7 @@ package com.idc.timetracker.common.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -26,6 +27,13 @@ public class GlobalExceptionHandler {
                 .reduce((a, b) -> a + "; " + b).orElse("Validación fallida");
         return ResponseEntity.unprocessableEntity()
                 .body(Map.of("error", Map.of("code", "VALIDACION", "message", msg)));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Body no legible: {}", ex.getMessage());
+        return ResponseEntity.unprocessableEntity()
+                .body(Map.of("error", Map.of("code", "VALIDACION", "message", "Cuerpo de la petición requerido o con formato inválido.")));
     }
 
     @ExceptionHandler(Exception.class)

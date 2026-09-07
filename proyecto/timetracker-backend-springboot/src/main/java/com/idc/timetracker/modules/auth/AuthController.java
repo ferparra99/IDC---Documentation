@@ -23,7 +23,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, TokenResponse>> refresh(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, TokenResponse>> refresh(@RequestBody(required = false) Map<String, String> body) {
         String refreshToken = body != null ? body.get("refreshToken") : null;
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new com.idc.timetracker.common.exception.ValidacionException("El campo 'refreshToken' es obligatorio.");
@@ -33,7 +33,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Void> logout(@RequestBody(required = false) Map<String, String> body) {
         String refreshToken = body != null ? body.get("refreshToken") : null;
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new com.idc.timetracker.common.exception.ValidacionException("El campo 'refreshToken' es obligatorio.");

@@ -3,6 +3,8 @@ package com.idc.timetracker.modules.leave;
 import com.idc.timetracker.modules.user.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -34,6 +36,7 @@ public class Permiso {
     private BigDecimal horas;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "tipo", nullable = false, columnDefinition = "tipo_permiso")
     private TipoPermiso tipo;
 
@@ -41,6 +44,7 @@ public class Permiso {
     private String descripcion;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "estado", nullable = false, columnDefinition = "estado_permiso")
     @Builder.Default
     private EstadoPermiso estado = EstadoPermiso.BORRADOR;
