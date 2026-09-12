@@ -135,3 +135,13 @@
   - **Validación esta vez:** se simuló manualmente cada uno de los 4 stages (incluido el nuevo `deps-prod`) y se ejecutaron `migrate.js`, `seed.js`, `syncFestivos.js` y `server.js` con `node` puro (sin `ts-node`) confirmando en cada uno que el único error posible era la ausencia de una base de datos real en el entorno de simulación (`ECONNREFUSED`) — el mismo patrón de validación usado en el resto del proyecto, esta vez aplicado también al camino de ejecución real del contenedor, no solo al build.
 - **Motivo:** Corregir un fallo real reportado por el usuario al ejecutar `docker compose up` por primera vez.
 - **Referencia:** N/A
+
+## [2026-09-11] - Refactor State Pattern en Spring Boot (hallazgo AI Council)
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:** Solo `timetracker-backend-springboot` (Node y frontend sin tocar, contrato API intacto).
+  - Nuevo paquete `modules/attendance/estado/`: interfaz `EstadoJornadaEstado` (3 métodos default `validarInicio/validarFinalizacion/validarEdicionManual` que lanzan `JornadaYaActivaException`/`NoHayJornadaActivaException`/`TransicionInvalidaException` con mensajes literales previos) + 4 `@Component` (`SinIniciarEstado`, `JornadaActivaEstado` con comentario explícito "sin cierre automático", `JornadaFinalizadaEstado`, `EnPermisoEstado` reservado para `modules/leave`) + `EstadoJornadaResolver` (`@Component` que indexa `List<EstadoJornadaEstado>` por `tipo()` en un `Map`).
+  - `AttendanceService` inyecta `EstadoJornadaResolver` y reemplaza las comparaciones `estado == EstadoJornada.X` en `iniciarJornada`/`finalizarJornada`/`editarManual` por `resolver.resolver(estado).validar*()` (SRP/OCP/DIP).
+  - `AttendanceServiceTest` ampliado de 4 a 10 tests: `iniciarLanzaSiYaFinalizada`, `iniciarLanzaSiEnPermiso`, `editarManualLanzaSiActiva/SinIniciar/EnPermiso`, `resolverCubreLosCuatroEstados`.
+  - `mvn test` 55 tests OK (antes 49), `mvn package` BUILD SUCCESS.
+- **Motivo:** Hallazgo AI Council — `EstadoJornada` era enum plano y las transiciones se validaban con `if (estado == ...)` dispersos en `AttendanceService`, violando el principio del proyecto de State obligatorio (ver `refactor-state-pattern-plan.md`).
+- **Referencia:** `refactor-state-pattern-plan.md`

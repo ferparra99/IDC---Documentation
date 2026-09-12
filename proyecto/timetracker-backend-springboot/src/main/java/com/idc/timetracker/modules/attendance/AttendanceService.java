@@ -3,6 +3,7 @@ package com.idc.timetracker.modules.attendance;
 import com.idc.timetracker.common.audit.AuditService;
 import com.idc.timetracker.common.exception.*;
 import com.idc.timetracker.common.util.TiempoUtil;
+import com.idc.timetracker.modules.attendance.estado.EstadoJornadaResolver;
 import com.idc.timetracker.modules.holiday.FestivoRepository;
 import com.idc.timetracker.modules.user.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class AttendanceService {
     private final TiempoUtil tiempoUtil;
     private final FestivoRepository festivoRepository;
     private final AuditService auditService;
+    private final EstadoJornadaResolver estadoResolver;
 
     // SystemConfigService es opcional — si no existe el bean, no rompe el contexto
     // Se deja como referencia no obligatoria para cumplir el requisito de compilación
@@ -55,14 +57,10 @@ public class AttendanceService {
 
         LocalDate hoy = tiempoUtil.fechaBogotaHoy();
 
-        // valida no existe registro hoy (UNIQUE usuario+fecha) y no hay activa
-        if (registroRepo.findByUsuarioIdAndFecha(userId, hoy).isPresent()) {
-            RegistroJornada existente = registroRepo.findByUsuarioIdAndFecha(userId, hoy).get();
-            if (existente.getEstado() == EstadoJornada.JORNADA_ACTIVA) {
-                throw new JornadaYaActivaException("Ya existe una jornada activa para hoy");
-            }
-            // si ya está finalizada tampoco se puede reiniciar
-            throw new JornadaYaActivaException("Ya existe una jornada para hoy con estado " + existente.getEstado());
+        // valida no existe registro hoy (UNIQUE usuario+fecha) — delega en State (SRP/OCP)
+        var existenteOpt = registroRepo.findByUsuarioIdAndFecha(userId, hoy);
+        if (existenteOpt.isPresent()) {
+            estadoResolver.resolver(existenteOpt.get().getEstado()).validarInicio();
         }
         // defensa extra: cualquier activa FIFO
         List<RegistroJornada> activas = registroRepo.findActivasPorUsuario(userId);
@@ -99,6 +97,8 @@ public class AttendanceService {
             throw new NoHayJornadaActivaException("No hay jornada activa para finalizar");
         }
         RegistroJornada registro = activas.get(0);
+
+        estadoResolver.resolver(registro.getEstado()).validarFinalizacion();
 
         if (registro.getHoraInicio() == null) {
             throw new TransicionInvalidaException("Invariante violado: no se puede finalizar sin horaInicio");
@@ -156,10 +156,7 @@ public class AttendanceService {
             }
         }
 
-        if (registro.getEstado() != EstadoJornada.JORNADA_FINALIZADA) {
-            throw new TransicionInvalidaException(
-                    "Solo se pueden editar manualmente jornadas ya finalizadas (estado actual: " + registro.getEstado() + ")");
-        }
+        estadoResolver.resolver(registro.getEstado()).validarEdicionManual();
 
         // snapshot para auditoría
         Object valorAnterior = snapshot(registro);

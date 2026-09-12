@@ -123,3 +123,12 @@
   - **Validación esta vez:** se simuló manualmente cada uno de los 4 stages (incluido el nuevo `deps-prod`) y se ejecutaron `migrate.js`, `seed.js`, `syncFestivos.js` y `server.js` con `node` puro (sin `ts-node`) confirmando en cada uno que el único error posible era la ausencia de una base de datos real en el entorno de simulación (`ECONNREFUSED`) — el mismo patrón de validación usado en el resto del proyecto, esta vez aplicado también al camino de ejecución real del contenedor, no solo al build.
 - **Motivo:** Corregir un fallo real reportado por el usuario al ejecutar `docker compose up` por primera vez.
 - **Referencia:** N/A
+
+## [2026-09-11] - Refactor State Pattern en Spring Boot (hallazgo AI Council)
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:** Solo `timetracker-backend-springboot` (Node y frontend sin tocar, contrato API intacto).
+  - Nuevo paquete `modules/attendance/estado/`: interfaz `EstadoJornadaEstado` + 4 `@Component` + `EstadoJornadaResolver` (indexa `List<EstadoJornadaEstado>` por `tipo()`).
+  - `AttendanceService` delega `iniciarJornada`/`finalizarJornada`/`editarManual` en `resolver.resolver(estado).validar*()` (mensajes literales preservados, sin nuevas excepciones).
+  - `AttendanceServiceTest` 4→10 tests, `mvn test` 55 OK, `mvn package` BUILD SUCCESS.
+- **Motivo:** Hallazgo AI Council — `EstadoJornada` enum plano con `if (estado == ...)` en `AttendanceService` violaba State obligatorio (`refactor-state-pattern-plan.md`).
+- **Referencia:** `refactor-state-pattern-plan.md`
