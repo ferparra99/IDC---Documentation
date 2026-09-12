@@ -2,6 +2,8 @@ package com.idc.timetracker.modules.systemconfig;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,6 +26,7 @@ public class ConfiguracionSistema {
     @Column(name = "clave", nullable = false, length = 80)
     private String clave;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "valor", nullable = false, columnDefinition = "jsonb")
     private String valor;
 

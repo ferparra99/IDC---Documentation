@@ -3,6 +3,8 @@ package com.idc.timetracker.modules.attendance;
 import com.idc.timetracker.modules.user.Usuario;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -42,6 +44,7 @@ public class RegistroJornada {
     private Instant horaFin;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "estado", nullable = false, columnDefinition = "estado_jornada")
     @Builder.Default
     private EstadoJornada estado = EstadoJornada.SIN_INICIAR;

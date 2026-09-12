@@ -15,6 +15,7 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -161,7 +162,7 @@ public class AttendanceService {
         }
 
         // snapshot para auditoría
-        String valorAnterior = snapshot(registro);
+        Object valorAnterior = snapshot(registro);
 
         boolean esDominicalOFestivo = esDominicalOFestivo(registro.getFecha());
         DesgloseHoras desglose = calculadora.calcular(nuevoInicio, nuevoFin, esDominicalOFestivo);
@@ -173,7 +174,7 @@ public class AttendanceService {
 
         RegistroJornada guardado = registroRepo.save(registro);
 
-        String valorNuevo = snapshot(guardado);
+        Object valorNuevo = snapshot(guardado);
         try {
             auditService.registrarEdicionJornada(registroId, userId, valorAnterior, valorNuevo, motivo.trim());
         } catch (Exception ignored) {
@@ -283,18 +284,20 @@ public class AttendanceService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
-    private String snapshot(RegistroJornada r) {
-        return "RegistroJornada{id=" + r.getId()
-                + ", fecha=" + r.getFecha()
-                + ", estado=" + r.getEstado()
-                + ", horaInicio=" + r.getHoraInicio()
-                + ", horaFin=" + r.getHoraFin()
-                + ", ordinarias=" + r.getHorasOrdinarias()
-                + ", extraDiurnas=" + r.getHorasExtraDiurnas()
-                + ", extraNocturnas=" + r.getHorasExtraNocturnas()
-                + ", recargoNocturno=" + r.getHorasRecargoNocturno()
-                + ", dominicalFestivo=" + r.getHorasDominicalFestivo()
-                + ", editado=" + r.isEditadoManualmente()
-                + "}";
+    private Map<String, Object> snapshot(RegistroJornada r) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("id", r.getId() != null ? r.getId().toString() : null);
+        m.put("fecha", r.getFecha() != null ? r.getFecha().toString() : null);
+        m.put("estado", r.getEstado() != null ? r.getEstado().name() : null);
+        m.put("horaInicio", r.getHoraInicio() != null ? r.getHoraInicio().toString() : null);
+        m.put("horaFin", r.getHoraFin() != null ? r.getHoraFin().toString() : null);
+        m.put("horasOrdinarias", r.getHorasOrdinarias());
+        m.put("horasExtraDiurnas", r.getHorasExtraDiurnas());
+        m.put("horasExtraNocturnas", r.getHorasExtraNocturnas());
+        m.put("horasRecargoNocturno", r.getHorasRecargoNocturno());
+        m.put("horasDominicalFestivo", r.getHorasDominicalFestivo());
+        m.put("editadoManualmente", r.isEditadoManualmente());
+        m.put("descripcionProyectos", r.getDescripcionProyectos());
+        return m;
     }
 }
