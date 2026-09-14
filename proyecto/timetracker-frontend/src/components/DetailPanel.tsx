@@ -1,6 +1,7 @@
 import { ResumenSemanalDTO, RegistroDTO } from "../api/types";
 import { useTheme } from "../context/ThemeContext";
 import { colorCategoria } from "../styles/categorias";
+import { formatearEstado } from "../utils/estado";
 
 export function DetailPanel({ resumen, registro, onClose }: { resumen?: ResumenSemanalDTO | null; registro?: RegistroDTO | null; onClose?: () => void }) {
   const { isDark } = useTheme();
@@ -14,7 +15,6 @@ export function DetailPanel({ resumen, registro, onClose }: { resumen?: ResumenS
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
               { l: 'Trabajadas', v: resumen.horasTrabajadas, c: 'ordinarias' as const },
-              { l: 'Mínimo', v: resumen.horasMinimasSemanales, c: 'permiso' as const },
               { l: 'Extra', v: resumen.horasExtra, c: 'extraDiurna' as const },
               { l: 'Faltantes', v: resumen.horasFaltantes, c: resumen.horasFaltantes>0?'dominical' as const:'ordinarias' as const },
             ].map(it => {
@@ -35,7 +35,7 @@ export function DetailPanel({ resumen, registro, onClose }: { resumen?: ResumenS
       {registro && (
         <>
           <div style={{ fontFamily: 'Fraunces, serif', fontWeight:700, fontSize:14 }}>Jornada {registro.fecha}</div>
-          <div style={{ fontSize:13, color:'var(--text-secondary)' }}>{registro.horaInicio24 ?? '-'} → {registro.horaFin24 ?? '-'} · <span className="mono">{registro.estado}</span></div>
+          <div style={{ fontSize:13, color:'var(--text-secondary)' }}>{registro.horaInicio24 ?? '-'} → {registro.horaFin24 ?? '-'} · <span>{formatearEstado(registro.estado)}</span></div>
           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
             {([
               ['Ordinarias', registro.horasOrdinarias, 'ordinarias'],

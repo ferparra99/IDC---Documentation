@@ -109,9 +109,9 @@ export function WeekCalendar({
                     marginLeft: inWorked ? '-1px' : undefined,
                   }}>
                     {isFirst && (
-                      <div style={{ position:'absolute', inset:'6px 8px 6px 8px', display:'flex', flexDirection:'column', justifyContent:'center', pointerEvents:'none' }}>
-                        <div style={{ fontSize:12, fontWeight:600, color: isDark?'#E9DDF8':'#4A3A6A', lineHeight:1.2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d.horasTrabajadas}h{d.horasTrabajadas>=2?' · bloque':''}{d.nombreFestivo?` · ${d.nombreFestivo}`:''}</div>
-                        <div style={{ fontSize:11, color: isDark?'#C9B8E8':'#8A7AA8' }}>{String(inicioH).padStart(2,'0')}:00 — {String(finH).padStart(2,'0')}:00</div>
+                      <div style={{ position:'absolute', top:6, left:8, right:8, height:`${(finH - inicioH)*44 - 12}px`, display:'flex', flexDirection:'column', justifyContent:'flex-start', gap:2, pointerEvents:'none', zIndex:2, overflow:'visible' }}>
+                        <div style={{ fontSize:12, fontWeight:600, color: isDark?'#E9DDF8':'#4A3A6A', lineHeight:1.3, whiteSpace:'normal', wordBreak:'break-word', overflow:'visible' }}>{d.horasTrabajadas}h{d.horasTrabajadas>=2?' · bloque':''}{d.nombreFestivo?` · ${d.nombreFestivo}`:''}</div>
+                        <div style={{ fontSize:11, color: isDark?'#C9B8E8':'#8A7AA8', whiteSpace:'nowrap' }}>{String(inicioH).padStart(2,'0')}:00 — {String(finH).padStart(2,'0')}:00</div>
                       </div>
                     )}
                     {isToday && h===now.getHours() && (

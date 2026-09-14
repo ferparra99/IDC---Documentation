@@ -11,7 +11,7 @@ import { useBreakpoint } from "../hooks/useBreakpoint";
 
 const NOMBRES_MES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 type View = 'week' | 'month';
-function addDays(s:string, d:number):string{ const [y,m,da]=s.split("-").map(Number); const dt=new Date(Date.UTC(y,m-1,da+12,0,0,0)); dt.setUTCDate(dt.getUTCDate()+d); return `${dt.getUTCFullYear().toString().padStart(4,"0")}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`; }
+function addDays(s:string, d:number):string{ const [y,m,da]=s.split("-").map(Number); const dt=new Date(Date.UTC(y,m-1,da,12,0,0,0)); dt.setUTCDate(dt.getUTCDate()+d); return `${dt.getUTCFullYear().toString().padStart(4,"0")}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`; }
 
 export function CalendarPage() {
   const hoy = new Date();
@@ -28,6 +28,8 @@ export function CalendarPage() {
   const hoyStr = hoyYYYYMMDD();
   const [weekAnchor, setWeekAnchor] = useState(hoyStr);
   const [weekRegistros, setWeekRegistros] = useState<Record<string,RegistroDTO>>({});
+  const [diasExtras, setDiasExtras] = useState<DiaCalendarioDTO[]>([]);
+  const [weekTick, setWeekTick] = useState(0);
 
   const persistView = (v:View)=>{ setView(v); localStorage.setItem('calendarView', v); };
 
@@ -36,10 +38,7 @@ export function CalendarPage() {
     try{
       const data = await api.get<DiaCalendarioDTO[]>(`/calendar?anio=${anio}&mes=${mes}`);
       setDias(data);
-      const { lunes, domingo } = primerYUltimoDiaSemana(hoyStr);
-      const rSem = await api.get<ResumenSemanalDTO>(`/attendance/summary?desde=${lunes}&hasta=${domingo}`);
-      setResumenSemanal(rSem);
-      // mensual: sumar dias existentes + fetch attendance for month range for accuracy
+      // mensual: fetch attendance for month range for accuracy
       const first=`${anio.toString().padStart(4,"0")}-${String(mes).padStart(2,"0")}-01`;
       const lastDay=new Date(Date.UTC(anio,mes,0)).getUTCDate();
       const last=`${anio.toString().padStart(4,"0")}-${String(mes).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
@@ -55,7 +54,7 @@ export function CalendarPage() {
   };
   useEffect(()=>{ cargar(); }, [anio, mes]);
 
-  // fetch registros for week view (for 08-17 wash exact)
+  // fetch registros + resumen para vista semanal (se actualiza al cambiar de semana)
   useEffect(()=>{
     if(view!=='week') return;
     const { lunes, domingo } = primerYUltimoDiaSemana(weekAnchor);
@@ -64,23 +63,44 @@ export function CalendarPage() {
       rs.forEach(r=> map[r.fecha]=r);
       setWeekRegistros(map);
     }).catch(()=> setWeekRegistros({}));
-  }, [view, weekAnchor, dias]);
+    api.get<ResumenSemanalDTO>(`/attendance/summary?desde=${lunes}&hasta=${domingo}`).then(setResumenSemanal).catch(()=>{});
+    // festivos/horas fuera del mes cargado: traer calendario de los meses que toca la semana
+    const [lY, lM] = lunes.split("-").map(Number);
+    const [dY, dM] = domingo.split("-").map(Number);
+    const pares: [number,number][] = [[lY,lM]];
+    if(dY!==lY || dM!==lM) pares.push([dY,dM]);
+    const aTraer = pares.filter(([y,m])=> !(y===anio && m===mes));
+    if(aTraer.length===0){ setDiasExtras([]); return; }
+    Promise.all(aTraer.map(([y,m])=> api.get<DiaCalendarioDTO[]>(`/calendar?anio=${y}&mes=${m}`).catch(()=>[] as DiaCalendarioDTO[])))
+      .then(arrs=> setDiasExtras(arrs.flat()))
+      .catch(()=> setDiasExtras([]));
+  }, [view, weekAnchor, anio, mes, weekTick]);
 
   const cambiarMes = (d:number)=>{ let nm=mes+d, na=anio; if(nm>12){nm=1;na++;} if(nm<1){nm=12;na--;} setMes(nm); setAnio(na); };
   const cambiarSemana = (d:number)=> setWeekAnchor(a=> addDays(a, d*7));
+  const irHoy = ()=>{ const h=hoyYYYYMMDD(); setWeekAnchor(h); setDiaEditando(null); setRegistroDetalle(null); };
+  const handleGuardado = ()=>{ setDiaEditando(null); setRegistroDetalle(null); cargar(); setWeekTick(t=>t+1); };
 
   const weekDias: DiaCalendarioDTO[] = useMemo(()=>{
     const { lunes } = primerYUltimoDiaSemana(weekAnchor);
     const base = new Date(lunes+"T12:00:00Z");
+    const todosDias = [...dias, ...diasExtras];
     return Array.from({length:7},(_,i)=>{
       const dt=new Date(base); dt.setUTCDate(base.getUTCDate()+i);
       const fecha=`${dt.getUTCFullYear().toString().padStart(4,"0")}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`;
-      const found=dias.find(x=>x.fecha===fecha);
+      const found=todosDias.find(x=>x.fecha===fecha);
       if(found) return found;
+      const reg=weekRegistros[fecha];
+      // fallback para semanas fuera del mes cargado: construir horas desde registro
+      if(reg){
+        const horas = (reg.horasOrdinarias||0)+(reg.horasExtraDiurnas||0)+(reg.horasExtraNocturnas||0)+(reg.horasRecargoNocturno||0)+(reg.horasDominicalFestivo||0);
+        const wd=dt.getUTCDay(); const isWeekend = wd===0 || wd===6;
+        return { fecha, horasTrabajadas: Math.round(horas*100)/100, esFestivo:false, esFinDeSemana:isWeekend, nombreFestivo:null, registroId:reg.id, estado:reg.estado } as DiaCalendarioDTO;
+      }
       const wd=dt.getUTCDay(); const isWeekend = wd===0 || wd===6;
       return { fecha, horasTrabajadas:0, esFestivo:false, esFinDeSemana:isWeekend, nombreFestivo:null, registroId:null, estado:null } as DiaCalendarioDTO;
     });
-  }, [weekAnchor, dias]);
+  }, [weekAnchor, dias, diasExtras, weekRegistros]);
 
   const onSelectDia = async (d:DiaCalendarioDTO)=>{
     setDiaEditando(d);
@@ -107,7 +127,7 @@ export function CalendarPage() {
         {view==='month' ? (
           <><button onClick={()=>cambiarMes(-1)} style={btnSec}>←</button><h2 style={{ fontSize:18, margin:0, fontFamily:'Fraunces, serif' }}>{NOMBRES_MES[mes-1]} {anio}</h2><button onClick={()=>cambiarMes(1)} style={btnSec}>→</button></>
         ) : (
-          <><button onClick={()=>cambiarSemana(-1)} style={btnSec}>←</button><h2 style={{ fontSize:16, margin:0, fontFamily:'Fraunces, serif' }}>{tituloSemana}</h2><button onClick={()=>cambiarSemana(1)} style={btnSec}>→</button><button onClick={()=>setWeekAnchor(hoyStr)} style={{...btnSec, fontSize:12}}>Hoy</button></>
+          <><button onClick={()=>cambiarSemana(-1)} style={btnSec}>←</button><h2 style={{ fontSize:16, margin:0, fontFamily:'Fraunces, serif' }}>{tituloSemana}</h2><button onClick={()=>cambiarSemana(1)} style={btnSec}>→</button><button onClick={irHoy} style={{...btnSec, fontSize:12}}>Hoy</button></>
         )}
         <div style={{ flex:1 }} />
         <div style={{ display:'flex', background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:9999, padding:3, gap:4 }}>
@@ -133,22 +153,22 @@ export function CalendarPage() {
         {/* desktop right panel */}
         {bp==='desktop' && diaEditando && (
           <div style={{ width:360, flexShrink:0, position:'sticky', top:16, display:'flex', flexDirection:'column', gap:12 }}>
-            <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={()=>{setDiaEditando(null); setRegistroDetalle(null); cargar();}} />
-            {registroDetalle && <DetailPanel resumen={resumenActivo} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} />}
+            <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />
+            <DetailPanel resumen={resumenActivo} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} />
           </div>
         )}
       </div>
 
       {bp === 'mobile' && (
         <BottomSheet open={!!diaEditando} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}}>
-          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={()=>{setDiaEditando(null); setRegistroDetalle(null); cargar();}} />}
-          {diaEditando && registroDetalle && <div style={{marginTop:12}}><DetailPanel resumen={resumenActivo} registro={registroDetalle} /></div>}
+          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />}
+          {diaEditando && <div style={{marginTop:12}}><DetailPanel resumen={resumenActivo} registro={registroDetalle} /></div>}
         </BottomSheet>
       )}
       {bp === 'tablet' && (
         <Drawer open={!!diaEditando} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}}>
-          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={()=>{setDiaEditando(null); setRegistroDetalle(null); cargar();}} />}
-          {diaEditando && registroDetalle && <div style={{marginTop:12}}><DetailPanel resumen={resumenActivo} registro={registroDetalle} /></div>}
+          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />}
+          {diaEditando && <div style={{marginTop:12}}><DetailPanel resumen={resumenActivo} registro={registroDetalle} /></div>}
         </Drawer>
       )}
       {/* desktop mobile already handled; desktop inline handled above */}
@@ -183,14 +203,14 @@ function EditContent({ dia, registro: regProp, onClose, onGuardado }: { dia: Dia
   };
 
   if(loading) return <div style={{ padding:16, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, fontSize:13, color:'var(--text-secondary)' }}>Cargando...</div>;
-  if(!registro) return <div style={{ padding:16, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12 }}><div style={{fontWeight:600, color:'var(--text-primary)'}}>Sin registro ese día</div><div style={{fontSize:12, color:'var(--text-secondary)', marginTop:4}}>Haz clic en un día con horas para editar.</div><button onClick={onClose} style={{...btnSec, marginTop:8}}>Cerrar</button></div>;
+  if(!registro) return <div style={{ padding:16, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12 }}><div style={{fontWeight:600, color:'var(--text-primary)'}}>Sin registro — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</div><div style={{fontSize:12, color:'var(--text-secondary)', marginTop:4}}>{dia.horasTrabajadas}h · {dia.esFestivo ? 'Festivo' : dia.esFinDeSemana ? 'Fin de semana' : 'Laborable'} · No hay horas registradas este día.</div><div style={{fontSize:11, color:'var(--text-tertiary)', marginTop:6}}>La edición manual requiere un registro previo (inicia/finaliza jornada). Puedes ver el resumen semanal a la derecha.</div><button onClick={onClose} style={{...btnSec, marginTop:12}}>Cerrar</button></div>;
 
   return (
     <div style={{ background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, padding:16 }}>
       <h3 style={{ marginTop:0, fontSize:15, fontFamily:'Fraunces, serif', color:'var(--text-primary)' }}>Editar jornada — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</h3>
       <DraggableHoursBar inicioMin={inicioMin} finMin={finMin} onChange={(i,f)=>{setInicioMin(i); setFinMin(f);}} />
       <p style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:4 }}>No cruza medianoche en esta vista. Para otros casos usa el backoffice.</p>
-      <textarea placeholder="Motivo (obligatorio, auditado)" value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{ width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:16 }} />
+      <textarea placeholder="Motivo (obligatorio, auditado)" value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{ width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:16, resize:'vertical', minHeight:60, maxHeight:180, overflow:'auto' }} />
       {error && <p style={{ color:'var(--accent-danger)', fontSize:13 }}>{error}</p>}
       <div style={{ display:'flex', gap:8, marginTop:12, justifyContent:'flex-end', flexWrap:'wrap' }}>
         <button onClick={onClose} style={btnSec}>Cancelar</button>

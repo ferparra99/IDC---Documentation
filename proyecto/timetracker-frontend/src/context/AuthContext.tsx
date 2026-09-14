@@ -12,6 +12,25 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioPublico | null>(() => {
+    // Requisito: al "iniciar el aplicativo" (pestaña nueva / app recién abierta)
+    // debe verse el login, no la pantalla principal. Pero F5 dentro de la
+    // misma pestaña debe mantener la sesión.
+    // sessionStorage vive por pestaña y sobrevive a F5, pero se limpia al
+    // cerrar la pestaña/navegador o abrir una nueva pestaña -> lo usamos
+    // como marcador de "sesión de pestaña".
+    try {
+      const esInicioApp = !sessionStorage.getItem("appStarted");
+      if (esInicioApp) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("usuario");
+        sessionStorage.setItem("appStarted", "true");
+        return null;
+      }
+    } catch {
+      // storage no disponible (SSR/tests) -> fallback sin auto-login
+      return null;
+    }
     const guardado = localStorage.getItem("usuario");
     return guardado ? JSON.parse(guardado) : null;
   });
@@ -33,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("token", resultado.token);
     localStorage.setItem("refreshToken", resultado.refreshToken);
     localStorage.setItem("usuario", JSON.stringify(resultado.usuario));
+    try { sessionStorage.setItem("appStarted", "true"); } catch {}
     setUsuario(resultado.usuario);
   }, []);
 

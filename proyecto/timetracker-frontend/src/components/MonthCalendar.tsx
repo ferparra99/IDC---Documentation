@@ -19,21 +19,20 @@ export function MonthCalendar({ anio, mes, dias, onSeleccionarDia }: { anio: num
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
         {celdas.map((dia, idx) => {
           if (!dia) return <div key={`vacio-${idx}`} />;
-          const esClickeable = dia.estado === "JORNADA_FINALIZADA";
           const fondo = dia.esFestivo ? (isDark ? "#3A1F1A" : "#fee2e2") : dia.esFinDeSemana ? (isDark ? "#1A2233" : "#dbeafe") : "var(--bg-surface)";
           const borde = dia.esFestivo ? (isDark ? "#7A3A2E" : "#fca5a5") : dia.esFinDeSemana ? (isDark ? "#2A3A55" : "#93c5fd") : "var(--border-subtle)";
           const pct = Math.min(100, (dia.horasTrabajadas / 8) * 100);
           return (
             <button
               key={dia.fecha}
-              onClick={() => esClickeable && onSeleccionarDia(dia)}
+              onClick={() => onSeleccionarDia(dia)}
               title={dia.nombreFestivo ?? undefined}
               style={{
                 textAlign: "left", minHeight: 92, borderRadius: 10, border: `1px solid ${borde}`, background: fondo,
-                padding: 8, cursor: esClickeable ? "pointer" : "default", opacity: dia.estado ? 1 : 0.7,
+                padding: 8, cursor: "pointer", opacity: 1,
                 display: 'flex', flexDirection: 'column', gap: 4,
               }}>
-              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'Fraunces, serif' }}>{Number(dia.fecha.slice(8, 10))}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'Fraunces, serif', color: '#f2f2f5' }}>{Number(dia.fecha.slice(8, 10))}</div>
               {dia.nombreFestivo && <div style={{ fontSize: 9, color: isDark ? "#FCA5A5" : "#b91c1c", lineHeight: 1.1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{dia.nombreFestivo}</div>}
               <div style={{ flex:1 }} />
               {dia.horasTrabajadas > 0 ? (

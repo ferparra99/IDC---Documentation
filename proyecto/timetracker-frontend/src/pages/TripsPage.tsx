@@ -49,7 +49,7 @@ export function TripsPage(){
       <form onSubmit={onSubmit} style={{ display:'flex', flexDirection:'column', gap:12, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, padding:16, maxWidth:560 }}>
         <label style={eti}>Punto de partida<input required value={form.puntoPartida} onChange={e=>setForm({...form, puntoPartida:e.target.value})} style={inp} /></label>
         <label style={eti}>Punto final<input required value={form.puntoFinal} onChange={e=>setForm({...form, puntoFinal:e.target.value})} style={inp} /></label>
-        <label style={eti}>Descripción<textarea required rows={2} value={form.descripcion} onChange={e=>setForm({...form, descripcion:e.target.value})} style={inp} /></label>
+        <label style={eti}>Descripción<textarea required rows={2} value={form.descripcion} onChange={e=>setForm({...form, descripcion:e.target.value})} style={{...inp, resize:'vertical', minHeight:60, maxHeight:200, overflow:'auto'}} /></label>
         <label style={eti}>Valor (por defecto ${valorDef.toLocaleString("es-CO")})<input type="number" min={0} step={100} value={form.valor} onChange={e=>setForm({...form, valor:e.target.value})} style={inp} /></label>
         {error && <p style={errSt}>{error}</p>}
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>

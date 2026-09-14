@@ -38,6 +38,18 @@ public class LeaveController {
         );
     }
 
+    private Map<String, Object> permisoToMap(Permiso p) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", p.getId().toString());
+        m.put("usuarioId", p.getUsuario().getId().toString());
+        m.put("fechaSolicitud", p.getFechaSolicitud().toString());
+        m.put("horas", p.getHoras());
+        m.put("tipo", p.getTipo().name());
+        m.put("descripcion", p.getDescripcion());
+        m.put("estado", p.getEstado().name());
+        return m;
+    }
+
     @PostMapping
     public ResponseEntity<Map<String, Object>> crear(@AuthenticationPrincipal String userId,
                                                      @RequestBody Map<String, Object> body) {
@@ -49,12 +61,13 @@ public class LeaveController {
         TipoPermiso tipo = TipoPermiso.valueOf((String) body.get("tipo"));
         String desc = (String) body.get("descripcion");
         var p = service.crear(toUUID(userId), fecha, horas, tipo, desc);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("data", p));
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("data", permisoToMap(p)));
     }
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> listar(@AuthenticationPrincipal String userId) {
-        return ResponseEntity.ok(Map.of("data", service.listar(toUUID(userId))));
+        var lista = service.listar(toUUID(userId)).stream().map(this::permisoToMap).toList();
+        return ResponseEntity.ok(Map.of("data", lista));
     }
 
     @PutMapping("/{id}")
@@ -67,7 +80,7 @@ public class LeaveController {
         String desc = (String) body.get("descripcion");
         // Si body trae campos vacíos, validar: al menos uno debe venir, sino servicio maneja nulls
         var p = service.editar(toUUID(userId), id, fecha, horas, tipo, desc);
-        return ResponseEntity.ok(Map.of("data", p));
+        return ResponseEntity.ok(Map.of("data", permisoToMap(p)));
     }
 
     @GetMapping("/{id}/preview")
@@ -101,6 +114,6 @@ public class LeaveController {
     public ResponseEntity<Map<String, Object>> submit(@AuthenticationPrincipal String userId,
                                                       @PathVariable UUID id) {
         var p = service.enviar(toUUID(userId), id);
-        return ResponseEntity.ok(Map.of("data", p));
+        return ResponseEntity.ok(Map.of("data", permisoToMap(p)));
     }
 }
