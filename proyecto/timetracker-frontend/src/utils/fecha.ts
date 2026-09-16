@@ -10,7 +10,16 @@ export function primerYUltimoDiaSemana(fechaYYYYMMDD: string): { lunes: string; 
 }
 
 export function hoyYYYYMMDD(): string {
-  return aYYYYMMDD(new Date());
+  // Hoy en zona horaria de Colombia (America/Bogota, UTC-5 sin DST).
+  // Usar Intl evita desfase cuando el navegador está en UTC y son las 22:00 en Bogotá (UTC 03:00 del día siguiente).
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
+    return fmt.format(new Date());
+  } catch {
+    // fallback local
+    const d = new Date();
+    return `${d.getFullYear().toString().padStart(4,"0")}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
 }
 
 function aYYYYMMDD(fecha: Date): string {

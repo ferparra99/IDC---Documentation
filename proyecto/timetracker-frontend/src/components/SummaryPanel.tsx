@@ -1,32 +1,27 @@
 import { ResumenSemanalDTO } from "../api/types";
+import { useTheme } from "../context/ThemeContext";
+import { colorCategoria } from "../styles/categorias";
 
-export function SummaryPanel({ resumen }: { resumen: ResumenSemanalDTO | null }) {
+export function SummaryPanel({ resumen, view }: { resumen: ResumenSemanalDTO | null; view?: 'week' | 'month' }) {
   if (!resumen) return null;
-
+  const { isDark } = useTheme();
   const items = [
-    { etiqueta: "Horas trabajadas (semana)", valor: resumen.horasTrabajadas, color: "#1d4ed8" },
-    { etiqueta: "Mínimo semanal", valor: resumen.horasMinimasSemanales, color: "#334155" },
-    { etiqueta: "Horas extra", valor: resumen.horasExtra, color: "#059669" },
-    { etiqueta: "Horas faltantes", valor: resumen.horasFaltantes, color: resumen.horasFaltantes > 0 ? "#dc2626" : "#059669" },
+    { etiqueta: view === 'month' ? "Trabajadas (mes)" : "Trabajadas (semana)", valor: resumen.horasTrabajadas, cat: 'ordinarias' as const },
+    { etiqueta: "Extra", valor: resumen.horasExtra, cat: 'extraDiurna' as const },
+    { etiqueta: "Faltantes", valor: resumen.horasFaltantes, cat: resumen.horasFaltantes>0 ? 'dominical' as const : 'ordinarias' as const },
   ];
-
   return (
-    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "12px 0" }}>
-      {items.map((item) => (
-        <div
-          key={item.etiqueta}
-          style={{
-            flex: "1 1 160px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 10,
-            padding: "10px 14px",
-            background: "#fff",
-          }}
-        >
-          <div style={{ fontSize: 12, color: "#64748b" }}>{item.etiqueta}</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: item.color }}>{item.valor}h</div>
-        </div>
-      ))}
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "12px 0" }}>
+      {items.map(item => {
+        const col = colorCategoria(item.cat, isDark);
+        return (
+          <div key={item.etiqueta} style={{ flex:"1 1 140px", border:`1px solid var(--border-subtle)`, borderLeft:`3px solid ${col.border}`, borderRadius:10, padding:"10px 14px", background: col.bg }}>
+            <div style={{ fontSize:11, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:0.5 }}>{item.etiqueta}</div>
+            <div style={{ fontSize:20, fontWeight:700, color: col.text, fontFamily:'Fraunces, serif' }}>{item.valor}h</div>
+            <div style={{ height:4, background:'var(--border-subtle)', borderRadius:9999, marginTop:6, overflow:'hidden' }}><div style={{ width:`${Math.min(100,(item.valor/42)*100)}%`, height:'100%', background: col.border }} /></div>
+          </div>
+        );
+      })}
     </div>
   );
 }

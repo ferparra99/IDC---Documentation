@@ -40,7 +40,7 @@ COPY --from=build /app/dist ./dist
 COPY package*.json ./
 COPY docker-entrypoint.sh ./
 
-RUN chmod +x docker-entrypoint.sh \
+RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh \
   && addgroup -S app && adduser -S app -G app \
   && chown -R app:app /app
 USER app

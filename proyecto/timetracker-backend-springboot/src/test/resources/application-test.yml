@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE DOMAIN IF NOT EXISTS rol_usuario AS VARCHAR(20)\;CREATE DOMAIN IF NOT EXISTS tipo_permiso AS VARCHAR(20)\;CREATE DOMAIN IF NOT EXISTS estado_permiso AS VARCHAR(30)\;CREATE DOMAIN IF NOT EXISTS estado_jornada AS VARCHAR(30)\;CREATE DOMAIN IF NOT EXISTS jsonb AS VARCHAR(2000)\;CREATE DOMAIN IF NOT EXISTS timestamptz AS TIMESTAMP WITH TIME ZONE\;CREATE DOMAIN IF NOT EXISTS uuid AS UUID
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always
+
+app:
+  jwt:
+    secret: test-secret-key-para-tests-muy-largo-32-chars-minimo-123456
+    expires-in: 1h
+  zona-horaria: America/Bogota

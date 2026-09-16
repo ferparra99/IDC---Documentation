@@ -279,8 +279,9 @@ SIN_INICIAR      --aplicarPermiso()-->  EN_PERMISO
 Cualquier transición no listada (ej. `finalizarJornada()` estando en `SIN_INICIAR`) debe ser rechazada explícitamente por la clase de estado correspondiente, no con un `if` disperso en el controlador.
 
 ### 11.3 Implementación backend
-- Cada estado se modela como una clase/objeto que implementa una interfaz común `JornadaState` con métodos como `iniciar()`, `finalizar(descripcionProyectos)`, `aplicarPermiso()`.
-- La entidad `RegistroJornada` mantiene una referencia a su estado actual y delega el comportamiento a él (cumpliendo Open/Closed: agregar un nuevo estado no obliga a modificar los existentes).
+- Cada estado se modela como una clase/objeto que implementa una interfaz común `JornadaState`/`EstadoJornadaEstado` con métodos como `validarInicio()`, `validarFinalizacion()`, `validarEdicionManual()`.
+- La validación de transición vive en objetos de estado (polimorfismo), no en `if (estado == ...)` dispersos en el servicio. `AttendanceService` resuelve el estado vía `EstadoJornadaResolver` (Spring inyecta `List<EstadoJornadaEstado>` → `Map<EstadoJornada, EstadoJornadaEstado>`) y delega `resolver(estado).validar*()`.
+- En Node: `src/domain/states/` (`SinIniciarState`, `JornadaActivaState`, `JornadaFinalizadaState`); en Spring Boot: `modules/attendance/estado/` (`SinIniciarEstado`, `JornadaActivaEstado`, `JornadaFinalizadaEstado`, `EnPermisoEstado` + `EstadoJornadaResolver`) — paridad conceptual desde el refactor del 2026-09-11 (ver `CHANGELOG.md`).
 - **El estado es la fuente de verdad** y vive en la base de datos (columna `estado` en `registro_jornada`, con enum/check constraint). El frontend nunca decide el estado por sí mismo: lo consulta y lo actualiza a través de la API, y la API es quien valida la transición mediante el patrón State.
 - Toda transición de estado se registra también en el log de auditoría (sección 8.2), incluyendo estado anterior y nuevo.
 
@@ -301,4 +302,4 @@ Cualquier transición no listada (ej. `finalizarJornada()` estando en `SIN_INICI
 
 ---
 
-*Última actualización: 30 de agosto de 2026.*
+*Última actualización: 11 de septiembre de 2026 (refactor State Pattern en Spring Boot).* 

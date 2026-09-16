@@ -1,0 +1,21 @@
+services:
+  backend:
+    build:
+      context: ./timetracker-backend-springboot
+    image: timetracker-backend-springboot
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-timetracker}:${POSTGRES_PASSWORD:-timetracker}@db:5432/${POSTGRES_DB:-timetracker}
+      JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET en el archivo .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@empresa.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-CambiarEnProduccion123}
+      SEED_ADMIN_NOMBRE: ${SEED_ADMIN_NOMBRE:-Administrador Inicial}
+      RUN_SEED_ON_START: ${RUN_SEED_ON_START:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"

@@ -115,6 +115,18 @@
 - **Motivo:** Solicitud explícita del usuario: pruebas unitarias bien estructuradas, con la mayor cobertura de casos posible.
 - **Referencia:** N/A
 
+## [2026-09-04] - Clon completo del backend a Spring Boot (Java 21) — migración completa
+
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - Se crea **`proyecto/timetracker-backend-springboot/`** al mismo nivel que `timetracker-backend` y `timetracker-frontend` (Java 21 + Spring Boot 3.3.5 + Maven + JPA + Flyway + Security + JJWT + POI), con paquete base `com.idc.timetracker` y estructura más ordenada que el DDD Node: `common/` cross-cutting + `modules/<dominio>/` vertical (entity/repo/service/controller/dto).
+  - **Paridad total:** 9 migraciones Flyway `V1-V9` copia literal de `001-009` Node, mismas tablas/columnas/tipos (`UUID`, `TIMESTAMPTZ`, `ENUM`, `NUMERIC(5,2)`, `JSONB`), mismos enums `SIN_INICIAR/JORNADA_ACTIVA/JORNADA_FINALIZADA/EN_PERMISO`, `BORRADOR/ENVIADO`, `PARCIAL/COMPLETO`; mismos contratos REST `GET /health` + `/api/v1/{auth,attendance,config,calendar,leaves,trips,reports/excel}` con wrapper `{data}`/`{error:{code}}` y mismos códigos `JORNADA_YA_ACTIVA 409`, `VALIDACION 422`, etc.; misma lógica de negocio: `CalculadoraHorasService` (franja 19:00-06:00 cruza medianoche, umbral 8h, redondeo 2 dec), `ColombianHolidaysService` (Ley Emiliani + Pascua Meeus), `HolidaySyncService` idempotente, `State` FIFO, validación permiso `COMPLETO/PARCIAL` vs horas registradas, `valorViajePorDefecto 5000`, `ExcelReportBuilder` 2 hojas `FFDBEAFE` frozen/autofilter/totales. Frontend funciona sin cambios apuntando a cualquiera de los dos backends vía `VITE_API_BASE_URL`.
+  - **TDD desde el primer commit:** se inició por los tests (como pidió el usuario: "la lógica se debe acomodar a los tests"). `49 tests` pasando: `CalculadoraHorasService (9)`, `ColombianHolidaysService (7)`, `JwtService (3)`, `AttendanceService (4)`, `CalendarService (3)`, `PermisoService (5)`, `ViajeService (4)`, `SystemConfigService (2)`, `ExcelReportBuilder (3)`, `ApiContractsIntegrationTest (9)` con `@SpringBootTest + H2 + MockMvc` validando `/health`, `login/refresh` JWT 1h + refresh 30d rotado, `today/start/finish` 201/409/422, `calendar?anio&mes`. `mvn test BUILD SUCCESS`, `mvn package BUILD SUCCESS` (jar 68 MB, `BUILD SUCCESS Docker` con `maven:3.9-eclipse-temurin-21 → eclipse-temurin:21-jre-alpine`).
+  - **Infra dual-backend:** `docker-compose.yml` base (db + frontend) + `docker-compose.node.yml` (Node) + `docker-compose.spring.yml` (Spring, `SPRING_DATASOURCE_URL` soporta `postgres://` vía `DatabaseUrlConverter`, `JWT_SECRET` compartido, mismo volumen `db_data` — cambiar de backend preserva datos). `EJECUCION.md` y `README.md` actualizados con tabla comparativa y comandos `docker compose -f docker-compose.yml -f docker-compose.*.yml up --build`. `Dockerfile` Spring multi-stage y `docker-entrypoint.sh`. Se validó `docker compose -f ...spring.yml config` y `docker build timetracker-backend-springboot` con éxito.
+  - Organización: se priorizó `Java 21 + Maven` y `com.idc.timetracker` como pidió el usuario; carpeta exacta `timetracker-backend-springboot` al mismo nivel de los otros componentes; se debe escoger uno de los dos backends a la vez (no simultáneos) — queda como mecanismo de overrides.
+- **Motivo:** Solicitud explícita del usuario: clon completo Node → Spring Boot JPA "más familiar", mantener dos backends para elegir en el deploy, iniciando por tests.
+- **Referencia:** N/A
+
 ## [2026-09-04] - Fix crítico: el contenedor Docker del backend fallaba en ejecución real
 - **Autor:** Claude (junto con el usuario)
 - **Cambio:** El usuario reportó que `docker compose up` fallaba al ejecutar las migraciones con `TypeError: Unknown file extension ".ts"` / `ERR_UNKNOWN_FILE_EXTENSION` — exactamente el riesgo que había quedado documentado como no validado en la entrada del 2026-09-02. Causa: la imagen final corría `ts-node` directamente sobre archivos `.ts`, y dentro de la imagen `node:20-alpine` el loader de CommonJS de `ts-node` no se registraba correctamente (Node intentaba resolver el archivo como ESM nativo).
@@ -123,3 +135,13 @@
   - **Validación esta vez:** se simuló manualmente cada uno de los 4 stages (incluido el nuevo `deps-prod`) y se ejecutaron `migrate.js`, `seed.js`, `syncFestivos.js` y `server.js` con `node` puro (sin `ts-node`) confirmando en cada uno que el único error posible era la ausencia de una base de datos real en el entorno de simulación (`ECONNREFUSED`) — el mismo patrón de validación usado en el resto del proyecto, esta vez aplicado también al camino de ejecución real del contenedor, no solo al build.
 - **Motivo:** Corregir un fallo real reportado por el usuario al ejecutar `docker compose up` por primera vez.
 - **Referencia:** N/A
+
+## [2026-09-11] - Refactor State Pattern en Spring Boot (hallazgo AI Council)
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:** Solo `timetracker-backend-springboot` (Node y frontend sin tocar, contrato API intacto).
+  - Nuevo paquete `modules/attendance/estado/`: interfaz `EstadoJornadaEstado` (3 métodos default `validarInicio/validarFinalizacion/validarEdicionManual` que lanzan `JornadaYaActivaException`/`NoHayJornadaActivaException`/`TransicionInvalidaException` con mensajes literales previos) + 4 `@Component` (`SinIniciarEstado`, `JornadaActivaEstado` con comentario explícito "sin cierre automático", `JornadaFinalizadaEstado`, `EnPermisoEstado` reservado para `modules/leave`) + `EstadoJornadaResolver` (`@Component` que indexa `List<EstadoJornadaEstado>` por `tipo()` en un `Map`).
+  - `AttendanceService` inyecta `EstadoJornadaResolver` y reemplaza las comparaciones `estado == EstadoJornada.X` en `iniciarJornada`/`finalizarJornada`/`editarManual` por `resolver.resolver(estado).validar*()` (SRP/OCP/DIP).
+  - `AttendanceServiceTest` ampliado de 4 a 10 tests: `iniciarLanzaSiYaFinalizada`, `iniciarLanzaSiEnPermiso`, `editarManualLanzaSiActiva/SinIniciar/EnPermiso`, `resolverCubreLosCuatroEstados`.
+  - `mvn test` 55 tests OK (antes 49), `mvn package` BUILD SUCCESS.
+- **Motivo:** Hallazgo AI Council — `EstadoJornada` era enum plano y las transiciones se validaban con `if (estado == ...)` dispersos en `AttendanceService`, violando el principio del proyecto de State obligatorio (ver `refactor-state-pattern-plan.md`).
+- **Referencia:** `refactor-state-pattern-plan.md`
