@@ -145,3 +145,19 @@
   - `mvn test` 55 tests OK (antes 49), `mvn package` BUILD SUCCESS.
 - **Motivo:** Hallazgo AI Council — `EstadoJornada` era enum plano y las transiciones se validaban con `if (estado == ...)` dispersos en `AttendanceService`, violando el principio del proyecto de State obligatorio (ver `refactor-state-pattern-plan.md`).
 - **Referencia:** `refactor-state-pattern-plan.md`
+
+## [2026-09-11] - Rediseño frontend responsive + semana 24h
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - Theming oscuro aclarado `#1C1C22/#24242F`, toggle global `App.tsx` header, shell responsive (`Sidebar`/`BottomNav`/`TopToolbar`).
+  - Calendario Lun-Dom semanal (default) con navegación por semana + mensual toggle; `WeekCalendar` 24h `00-23` scroll oculto `68vh` auto-scroll 08:00; `MonthCalendar` celdas amplias barras incrementales.
+  - Detalle a la derecha (`DetailPanel` bottom sheet/drawer/columna sticky 360px); `SummaryPanel` sin "Mínimo", datos semanales vs mensuales.
+  - Semana sutil (imagen ref): cada hora trabajada como celda lavanda `#F3EFFF` (dark `rgba(232,224,248,0.18)`) con borde izq 3px `#E8AFAF`, dos casillas contiguas forman bloque continuo partido por grilla; info solo primera casilla (`horas + 10:00→12:00`).
+- **Validación:** `vite build` 52 modules OK.
+- **Referencia:** `frontend-ui-redesign-plan.md`
+
+## [2026-09-17] - Crear jornada por clic + etiquetas de estado
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:** Backend `V10__add_origen.sql` + `crearManual`/`POST /attendance/manual` (Jornada agregada) + frontend `utils/estado.ts` (`Jornada sin iniciar/iniciada/finalizada/agregada/modificada`) y `CalendarPage` modo crear/editar con motivo y descripción por clic en cualquier día/hora.
+- **Validación:** `mvn test` 55 OK, `mvn package` BUILD SUCCESS, `vite build` 53 modules OK.
+- **Referencia:** Solicitud usuario 17-09

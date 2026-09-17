@@ -1,15 +1,13 @@
 package com.idc.timetracker.modules.attendance;
 
-import com.idc.timetracker.common.exception.NoAutorizadoException;
 import com.idc.timetracker.common.exception.ValidacionException;
+import com.idc.timetracker.common.security.AccessControlService;
 import com.idc.timetracker.modules.attendance.dto.AttendanceMapper;
 import com.idc.timetracker.modules.attendance.dto.RegistroDTO;
 import com.idc.timetracker.modules.systemconfig.SystemConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,28 +28,15 @@ public class AttendanceController {
     private final AttendanceService service;
     private final AttendanceMapper mapper;
     private final SystemConfigService configService;
+    private final AccessControlService access;
 
     private UUID toUUID(String userId) {
         return UUID.fromString(userId);
     }
 
-    private boolean isAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return false;
-        return auth.getAuthorities().stream().anyMatch(a ->
-                a.getAuthority().equalsIgnoreCase("ROLE_administrador")
-                        || a.getAuthority().equalsIgnoreCase("administrador")
-                        || a.getAuthority().equalsIgnoreCase("ROLE_ADMIN")
-        );
-    }
-
-    private UUID usuarioEfectivo(String solicitado, String actual) {
-        String eff = (solicitado != null && !solicitado.isBlank()) ? solicitado : actual;
-        if (!eff.equals(actual) && !isAdmin()) {
-            throw new NoAutorizadoException("No puedes consultar información de otro usuario.");
-        }
-        return UUID.fromString(eff);
-    }
+    // Delegados a AccessControlService para centralizar (antes duplicado en 4 controllers)
+    private boolean isAdmin() { return access.isAdmin(); }
+    private UUID usuarioEfectivo(String solicitado, String actual) { return access.usuarioEfectivo(solicitado, actual); }
 
     @GetMapping("/today")
     public ResponseEntity<Map<String, Object>> today(@AuthenticationPrincipal String userId) {
@@ -87,6 +72,34 @@ public class AttendanceController {
         RegistroJornada actualizado = service.finalizarJornada(uid, descripcion);
         RegistroDTO dto = mapper.toDTO(actualizado);
         return ResponseEntity.ok(Map.of("data", dto));
+    }
+
+    @PostMapping("/manual")
+    public ResponseEntity<Map<String, Object>> crearManual(@AuthenticationPrincipal String userId,
+                                                           @RequestBody Map<String, String> body) {
+        String fechaStr = body != null ? body.get("fecha") : null;
+        String horaInicioStr = body != null ? body.get("horaInicio") : null;
+        String horaFinStr = body != null ? body.get("horaFin") : null;
+        String motivo = body != null ? body.get("motivo") : null;
+        String descripcion = body != null ? body.get("descripcionProyectos") : null;
+        if (fechaStr == null || horaInicioStr == null || horaFinStr == null || motivo == null || descripcion == null
+                || fechaStr.isBlank() || motivo.isBlank() || descripcion.isBlank()) {
+            throw new ValidacionException("Los campos 'fecha', 'horaInicio', 'horaFin', 'motivo' y 'descripcionProyectos' son obligatorios.");
+        }
+        LocalDate fecha;
+        Instant horaInicio;
+        Instant horaFin;
+        try {
+            fecha = LocalDate.parse(fechaStr);
+            horaInicio = Instant.parse(horaInicioStr);
+            horaFin = Instant.parse(horaFinStr);
+        } catch (Exception e) {
+            throw new ValidacionException("Formato de fecha inválido (fecha YYYY-MM-DD, horas ISO8601 Instant).");
+        }
+        UUID uid = toUUID(userId);
+        RegistroJornada creado = service.crearManual(uid, fecha, horaInicio, horaFin, motivo, descripcion);
+        RegistroDTO dto = mapper.toDTO(creado);
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("data", dto));
     }
 
     @PutMapping("/{id}")

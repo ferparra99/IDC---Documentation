@@ -30,4 +30,5 @@ public class RegistroDTO {
     private BigDecimal horasRecargoNocturno;
     private BigDecimal horasDominicalFestivo;
     private boolean editadoManualmente;
+    private String origen;
 }

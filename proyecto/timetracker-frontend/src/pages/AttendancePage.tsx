@@ -37,7 +37,7 @@ export function AttendancePage() {
 
   return (
     <div>
-      <TopToolbar title="Fichaje de hoy" subtitle={`Estado: ${formatearEstado(estado)}${registro?.horaInicio24 ? ` · inicio ${registro.horaInicio24}` : ''}${registro?.horaFin24 ? ` · fin ${registro.horaFin24}` : ''}`} />
+      <TopToolbar title="Fichaje de hoy" subtitle={`Estado: ${formatearEstado(estado, registro)}${registro?.horaInicio24 ? ` · inicio ${registro.horaInicio24}` : ''}${registro?.horaFin24 ? ` · fin ${registro.horaFin24}` : ''}`} />
       <div style={{ maxWidth: 520, display:'flex', flexDirection:'column', gap:16 }}>
         <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
           <button onClick={iniciar} disabled={!puedeIniciar || cargando}
@@ -63,9 +63,9 @@ export function AttendancePage() {
           <div style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:6 }}>Requerido solo al finalizar. Queda auditado.</div>
         </div>
 
-        {estado === "JORNADA_FINALIZADA" && (
+        {(estado === "JORNADA_FINALIZADA") && (
           <div style={{ background:'#16302A', border:'1px solid #6FCB9A', borderLeft:'3px solid #6FCB9A', borderRadius:10, padding:12, color:'#A8E9C4', fontSize:13 }}>
-            ✓ Jornada Finalizada · Total {((registro?.horasOrdinarias??0)+(registro?.horasExtraDiurnas??0)+(registro?.horasExtraNocturnas??0)+(registro?.horasRecargoNocturno??0)+(registro?.horasDominicalFestivo??0)).toFixed(2)}h
+            ✓ {formatearEstado(estado, registro)} · Total {((registro?.horasOrdinarias??0)+(registro?.horasExtraDiurnas??0)+(registro?.horasExtraNocturnas??0)+(registro?.horasRecargoNocturno??0)+(registro?.horasDominicalFestivo??0)).toFixed(2)}h
             <div style={{ height:6, background:'rgba(255,255,255,0.2)', borderRadius:9999, marginTop:8, overflow:'hidden' }}>
               <div style={{ width:`${Math.min(100, (((registro?.horasOrdinarias??0)/8)*100))}%`, height:'100%', background:'#6FCB9A' }} />
             </div>

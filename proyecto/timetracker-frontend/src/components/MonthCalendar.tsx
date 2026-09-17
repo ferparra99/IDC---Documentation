@@ -1,5 +1,6 @@
 import { DiaCalendarioDTO } from "../api/types";
 import { useTheme } from "../context/ThemeContext";
+import { formatearEstado } from "../utils/estado";
 
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -32,18 +33,18 @@ export function MonthCalendar({ anio, mes, dias, onSeleccionarDia }: { anio: num
                 padding: 8, cursor: "pointer", opacity: 1,
                 display: 'flex', flexDirection: 'column', gap: 4,
               }}>
-              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'Fraunces, serif', color: '#f2f2f5' }}>{Number(dia.fecha.slice(8, 10))}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'Fraunces, serif', color: 'var(--text-primary)' }}>{Number(dia.fecha.slice(8, 10))}</div>
               {dia.nombreFestivo && <div style={{ fontSize: 9, color: isDark ? "#FCA5A5" : "#b91c1c", lineHeight: 1.1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{dia.nombreFestivo}</div>}
               <div style={{ flex:1 }} />
               {dia.horasTrabajadas > 0 ? (
                 <>
-                  <div style={{ fontSize: 13, color: "var(--accent-primary)", fontWeight: 700, fontFamily:'JetBrains Mono, monospace' }}>{dia.horasTrabajadas}h</div>
+                  <div style={{ fontSize: 11, color: "var(--accent-primary)", fontWeight: 700, fontFamily:'JetBrains Mono, monospace' }}>{dia.horasTrabajadas}h · <span style={{fontSize:9}}>{formatearEstado(dia.estado as any, { estado: dia.estado, editadoManualmente:false, origen: dia.estado==='JORNADA_FINALIZADA'?'fichaje':null } as any)}</span></div>
                   <div style={{ height: 6, background: "var(--border-subtle)", borderRadius: 9999, overflow: 'hidden' }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: dia.esFestivo ? '#D6B85E' : dia.esFinDeSemana ? '#6E6E78' : 'var(--accent-primary)', transition: 'width 300ms' }} />
                   </div>
                 </>
               ) : <div style={{ height: 6 }} />}
-              {dia.estado === "JORNADA_ACTIVA" && <div style={{ fontSize: 10, color: "#10B981", fontWeight:600 }}>● activa</div>}
+              {dia.estado && <div style={{ fontSize: 9, color: dia.estado==='JORNADA_ACTIVA' ? "#10B981" : "var(--text-tertiary)", fontWeight:600, marginTop:2 }}>{formatearEstado(dia.estado as any, null)}</div>}
             </button>
           );
         })}

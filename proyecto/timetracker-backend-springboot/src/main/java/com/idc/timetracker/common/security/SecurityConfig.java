@@ -22,9 +22,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final com.idc.timetracker.common.config.AppProperties appProperties;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtFilter, com.idc.timetracker.common.config.AppProperties appProperties) {
         this.jwtFilter = jwtFilter;
+        this.appProperties = appProperties;
     }
 
     @Bean
@@ -45,7 +47,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOriginPatterns(List.of("*"));
+        String origins = appProperties.getCors().getAllowedOrigins();
+        if (origins == null || origins.isBlank() || "*".equals(origins.trim())) {
+            cfg.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            cfg.setAllowedOriginPatterns(List.of(origins.split(",")));
+        }
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setAllowCredentials(false);

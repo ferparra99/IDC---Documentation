@@ -11,7 +11,11 @@ function requerida(nombre: string): string {
 export const env = {
   port: Number(process.env.PORT ?? 3000),
   databaseUrl: requerida("DATABASE_URL"),
-  jwtSecret: requerida("JWT_SECRET"),
+  jwtSecret: (() => {
+    const s = requerida("JWT_SECRET");
+    if (s.length < 32) throw new Error("JWT_SECRET debe tener al menos 32 caracteres");
+    return s;
+  })(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "1h",
   seedAdminEmail: process.env.SEED_ADMIN_EMAIL ?? "admin@empresa.com",
   seedAdminPassword: process.env.SEED_ADMIN_PASSWORD ?? "CambiarEnProduccion123",

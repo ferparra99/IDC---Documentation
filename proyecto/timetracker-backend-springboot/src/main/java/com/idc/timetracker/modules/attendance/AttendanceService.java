@@ -181,6 +181,37 @@ public class AttendanceService {
         return guardado;
     }
 
+    @Transactional
+    public RegistroJornada crearManual(UUID userId, LocalDate fecha, Instant horaInicio, Instant horaFin, String motivo, String descripcion) {
+        if (motivo == null || motivo.isBlank()) throw new ValidacionException("El motivo es obligatorio para agregar horas.");
+        if (descripcion == null || descripcion.isBlank()) throw new ValidacionException("La descripción de proyectos es obligatoria.");
+        if (horaInicio == null || horaFin == null) throw new ValidacionException("horaInicio y horaFin son obligatorios.");
+        if (!horaFin.isAfter(horaInicio)) throw new ValidacionException("horaFin debe ser posterior a horaInicio.");
+        usuarioRepo.findById(userId).orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado: " + userId));
+        if (registroRepo.findByUsuarioIdAndFecha(userId, fecha).isPresent()) {
+            throw new JornadaYaActivaException("Ya existe una jornada para el día " + fecha);
+        }
+        boolean esDominicalOFestivo = esDominicalOFestivo(fecha);
+        DesgloseHoras desglose = calculadora.calcular(horaInicio, horaFin, esDominicalOFestivo);
+        var usuario = usuarioRepo.getReferenceById(userId);
+        RegistroJornada registro = RegistroJornada.builder()
+                .usuario(usuario)
+                .fecha(fecha)
+                .horaInicio(horaInicio)
+                .horaFin(horaFin)
+                .estado(EstadoJornada.JORNADA_FINALIZADA)
+                .descripcionProyectos(descripcion.trim())
+                .origen("manual")
+                .editadoManualmente(false)
+                .build();
+        aplicarDesglose(registro, desglose);
+        RegistroJornada guardado = registroRepo.save(registro);
+        try {
+            auditService.audit("registro_jornada", guardado.getId(), userId, null, snapshot(guardado), motivo.trim());
+        } catch (Exception ignored) {}
+        return guardado;
+    }
+
     @Transactional(readOnly = true)
     public List<RegistroJornada> listar(UUID userId, LocalDate desde, LocalDate hasta) {
         if (desde != null && hasta != null) {
@@ -294,6 +325,7 @@ public class AttendanceService {
         m.put("horasRecargoNocturno", r.getHorasRecargoNocturno());
         m.put("horasDominicalFestivo", r.getHorasDominicalFestivo());
         m.put("editadoManualmente", r.isEditadoManualmente());
+        m.put("origen", r.getOrigen());
         m.put("descripcionProyectos", r.getDescripcionProyectos());
         return m;
     }

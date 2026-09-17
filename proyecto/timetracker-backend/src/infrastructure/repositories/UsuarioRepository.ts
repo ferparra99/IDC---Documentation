@@ -26,7 +26,7 @@ export class UsuarioRepository {
 
   async buscarPorEmail(email: string): Promise<Usuario | null> {
     const { rows } = await this.pool.query<FilaUsuario>(
-      "SELECT * FROM usuarios WHERE email = $1 AND activo = true",
+      "SELECT id, nombre, email, password_hash, rol, activo FROM usuarios WHERE email = $1 AND activo = true",
       [email]
     );
     return rows[0] ? aUsuario(rows[0]) : null;
@@ -34,7 +34,7 @@ export class UsuarioRepository {
 
   async buscarPorId(id: string): Promise<Usuario | null> {
     const { rows } = await this.pool.query<FilaUsuario>(
-      "SELECT * FROM usuarios WHERE id = $1 AND activo = true",
+      "SELECT id, nombre, email, password_hash, rol, activo FROM usuarios WHERE id = $1 AND activo = true",
       [id]
     );
     return rows[0] ? aUsuario(rows[0]) : null;

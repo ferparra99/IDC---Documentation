@@ -26,4 +26,6 @@ public interface RegistroJornadaRepository extends JpaRepository<RegistroJornada
 
     @Query("SELECT r FROM RegistroJornada r WHERE r.usuario.id = :usuarioId AND r.estado = com.idc.timetracker.modules.attendance.EstadoJornada.JORNADA_ACTIVA ORDER BY r.fecha ASC")
     List<RegistroJornada> findActivasPorUsuario(@Param("usuarioId") UUID usuarioId);
+
+    List<RegistroJornada> findByFechaBetweenOrderByFechaAsc(LocalDate desde, LocalDate hasta);
 }

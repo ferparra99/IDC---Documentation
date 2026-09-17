@@ -76,6 +76,10 @@ public class RegistroJornada {
     @Builder.Default
     private boolean editadoManualmente = false;
 
+    @Column(name = "origen", nullable = false)
+    @Builder.Default
+    private String origen = "fichaje";
+
     @Column(name = "creado_en", nullable = false, updatable = false, columnDefinition = "timestamptz")
     private Instant creadoEn;
 

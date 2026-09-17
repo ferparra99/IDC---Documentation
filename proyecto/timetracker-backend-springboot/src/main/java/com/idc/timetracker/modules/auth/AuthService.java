@@ -31,15 +31,16 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(String email, String password) {
+        String emailHash = sha256Hex(email.toLowerCase());
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .filter(u -> Boolean.TRUE.equals(u.getActivo()))
                 .orElseThrow(() -> {
-                    log.warn("Intento de login con email no existente o inactivo: {}", email);
+                    log.warn("Intento de login con email no existente o inactivo emailHash={}", emailHash);
                     return new CredencialesInvalidasException("Email o contraseña incorrectos.");
                 });
 
         if (!passwordEncoder.matches(password, usuario.getPasswordHash())) {
-            log.warn("Intento de login con contraseña incorrecta email={} usuarioId={}", email, usuario.getId());
+            log.warn("Intento de login con contraseña incorrecta emailHash={} usuarioId={}", emailHash, usuario.getId());
             throw new CredencialesInvalidasException("Email o contraseña incorrectos.");
         }
 

@@ -35,7 +35,7 @@ export function DetailPanel({ resumen, registro, onClose }: { resumen?: ResumenS
       {registro && (
         <>
           <div style={{ fontFamily: 'Fraunces, serif', fontWeight:700, fontSize:14 }}>Jornada {registro.fecha}</div>
-          <div style={{ fontSize:13, color:'var(--text-secondary)' }}>{registro.horaInicio24 ?? '-'} → {registro.horaFin24 ?? '-'} · <span>{formatearEstado(registro.estado)}</span></div>
+          <div style={{ fontSize:13, color:'var(--text-secondary)' }}>{registro.horaInicio24 ?? '-'} → {registro.horaFin24 ?? '-'} · <span>{formatearEstado(registro.estado, registro)}</span></div>
           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
             {([
               ['Ordinarias', registro.horasOrdinarias, 'ordinarias'],

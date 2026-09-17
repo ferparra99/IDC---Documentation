@@ -23,6 +23,7 @@ export interface RegistroDTO {
   horasRecargoNocturno: number;
   horasDominicalFestivo: number;
   editadoManualmente: boolean;
+  origen?: string | null;
 }
 
 export interface DiaCalendarioDTO {

@@ -181,40 +181,52 @@ function EditContent({ dia, registro: regProp, onClose, onGuardado }: { dia: Dia
   const [inicioMin, setInicioMin]=useState(8*60);
   const [finMin,setFinMin]=useState(17*60);
   const [motivo,setMotivo]=useState("");
+  const [descripcion,setDescripcion]=useState("");
   const [error,setError]=useState<string|null>(null);
   const [guardando,setGuardando]=useState(false);
-  const [loading,setLoading]=useState(!regProp);
+  const [loading,setLoading]=useState(!regProp && !!dia.registroId);
 
   useEffect(()=>{
-    if(regProp){ setRegistro(regProp); if(regProp.horaInicio24) setInicioMin(hhmmAMinutos(regProp.horaInicio24)); if(regProp.horaFin24) setFinMin(hhmmAMinutos(regProp.horaFin24)); setLoading(false); return; }
+    if(regProp){ setRegistro(regProp); if(regProp.horaInicio24) setInicioMin(hhmmAMinutos(regProp.horaInicio24)); if(regProp.horaFin24) setFinMin(hhmmAMinutos(regProp.horaFin24)); if(regProp.descripcionProyectos) setDescripcion(regProp.descripcionProyectos); setLoading(false); return; }
+    if(!dia.registroId){ setRegistro(null); setLoading(false); return; }
     setLoading(true);
     api.get<RegistroDTO[]>(`/attendance?desde=${dia.fecha}&hasta=${dia.fecha}`).then(rs=>{
-      const r=rs[0]; if(r){ setRegistro(r); if(r.horaInicio24) setInicioMin(hhmmAMinutos(r.horaInicio24)); if(r.horaFin24) setFinMin(hhmmAMinutos(r.horaFin24)); }
+      const r=rs[0]; if(r){ setRegistro(r); if(r.horaInicio24) setInicioMin(hhmmAMinutos(r.horaInicio24)); if(r.horaFin24) setFinMin(hhmmAMinutos(r.horaFin24)); if(r.descripcionProyectos) setDescripcion(r.descripcionProyectos); }
     }).catch(()=>setError("No se pudo cargar el detalle.")).finally(()=>setLoading(false));
-  }, [dia.fecha, regProp]);
+  }, [dia.fecha, dia.registroId, regProp]);
 
+  const esEdicion = !!registro;
   const guardar = async ()=>{
-    if(!registro) return;
     if(!motivo.trim()){ setError("El motivo es obligatorio."); return; }
+    if(!descripcion.trim()){ setError("La descripción de proyectos es obligatoria."); return; }
+    if(finMin<=inicioMin){ setError("La hora de fin debe ser posterior al inicio."); return; }
     setGuardando(true); setError(null);
-    try{ await api.put(`/attendance/${registro.id}`, { horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo }); onGuardado(); }
-    catch(err){ setError(err instanceof ApiError ? err.message : "No se pudo guardar."); }
+    try{
+      if(esEdicion){
+        await api.put(`/attendance/${registro!.id}`, { horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo });
+        // actualizar descripcion si cambió (via mismo endpoint no hay campo, se deja audit con motivo)
+      } else {
+        await api.post(`/attendance/manual`, { fecha: dia.fecha, horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo, descripcionProyectos: descripcion });
+      }
+      onGuardado();
+    } catch(err){ setError(err instanceof ApiError ? err.message : "No se pudo guardar."); }
     finally{ setGuardando(false); }
   };
 
   if(loading) return <div style={{ padding:16, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, fontSize:13, color:'var(--text-secondary)' }}>Cargando...</div>;
-  if(!registro) return <div style={{ padding:16, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12 }}><div style={{fontWeight:600, color:'var(--text-primary)'}}>Sin registro — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</div><div style={{fontSize:12, color:'var(--text-secondary)', marginTop:4}}>{dia.horasTrabajadas}h · {dia.esFestivo ? 'Festivo' : dia.esFinDeSemana ? 'Fin de semana' : 'Laborable'} · No hay horas registradas este día.</div><div style={{fontSize:11, color:'var(--text-tertiary)', marginTop:6}}>La edición manual requiere un registro previo (inicia/finaliza jornada). Puedes ver el resumen semanal a la derecha.</div><button onClick={onClose} style={{...btnSec, marginTop:12}}>Cerrar</button></div>;
 
   return (
     <div style={{ background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, padding:16 }}>
-      <h3 style={{ marginTop:0, fontSize:15, fontFamily:'Fraunces, serif', color:'var(--text-primary)' }}>Editar jornada — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</h3>
+      <h3 style={{ marginTop:0, fontSize:15, fontFamily:'Fraunces, serif', color:'var(--text-primary)' }}>{esEdicion ? 'Editar' : 'Agregar'} jornada — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</h3>
+      {!esEdicion && <p style={{ fontSize:12, color:'var(--text-secondary)', marginTop:-8, marginBottom:8 }}>No hay registro este día. Ajusta el rango y agrega las horas trabajadas (quedará como <em>Jornada agregada</em>).</p>}
       <DraggableHoursBar inicioMin={inicioMin} finMin={finMin} onChange={(i,f)=>{setInicioMin(i); setFinMin(f);}} />
-      <p style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:4 }}>No cruza medianoche en esta vista. Para otros casos usa el backoffice.</p>
-      <textarea placeholder="Motivo (obligatorio, auditado)" value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{ width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:16, resize:'vertical', minHeight:60, maxHeight:180, overflow:'auto' }} />
+      <p style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:4 }}>No cruza medianoche en esta vista. {esEdicion ? 'Guardar quedará como Jornada modificada.' : 'Se creará como Jornada agregada.'}</p>
+      <input placeholder="Descripción de proyectos (obligatorio)" value={descripcion} onChange={e=>setDescripcion(e.target.value)} style={{ width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:14 }} />
+      <textarea placeholder="Motivo (obligatorio, auditado) — por qué agregas/edites este día" value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{ width:'100%', marginTop:8, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:16, resize:'vertical', minHeight:60, maxHeight:180, overflow:'auto' }} />
       {error && <p style={{ color:'var(--accent-danger)', fontSize:13 }}>{error}</p>}
       <div style={{ display:'flex', gap:8, marginTop:12, justifyContent:'flex-end', flexWrap:'wrap' }}>
         <button onClick={onClose} style={btnSec}>Cancelar</button>
-        <button onClick={guardar} disabled={guardando} style={{...btnPri, opacity: guardando?0.6:1, width: 'auto' }}>{guardando?"Guardando...":"Guardar corrección"}</button>
+        <button onClick={guardar} disabled={guardando} style={{...btnPri, opacity: guardando?0.6:1, width: 'auto' }}>{guardando ? "Guardando..." : esEdicion ? "Guardar corrección" : "Agregar horas"}</button>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { DiaCalendarioDTO, RegistroDTO } from "../api/types";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useTheme } from "../context/ThemeContext";
+import { formatearEstado } from "../utils/estado";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const DIAS_LABEL = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
@@ -110,8 +111,8 @@ export function WeekCalendar({
                   }}>
                     {isFirst && (
                       <div style={{ position:'absolute', top:6, left:8, right:8, height:`${(finH - inicioH)*44 - 12}px`, display:'flex', flexDirection:'column', justifyContent:'flex-start', gap:2, pointerEvents:'none', zIndex:2, overflow:'visible' }}>
-                        <div style={{ fontSize:12, fontWeight:600, color: isDark?'#E9DDF8':'#4A3A6A', lineHeight:1.3, whiteSpace:'normal', wordBreak:'break-word', overflow:'visible' }}>{d.horasTrabajadas}h{d.horasTrabajadas>=2?' · bloque':''}{d.nombreFestivo?` · ${d.nombreFestivo}`:''}</div>
-                        <div style={{ fontSize:11, color: isDark?'#C9B8E8':'#8A7AA8', whiteSpace:'nowrap' }}>{String(inicioH).padStart(2,'0')}:00 — {String(finH).padStart(2,'0')}:00</div>
+                        <div style={{ fontSize:11, fontWeight:700, color: isDark?'#E9DDF8':'#4A3A6A', lineHeight:1.2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{formatearEstado(d.estado as any, reg as any)} · {d.horasTrabajadas}h</div>
+                        <div style={{ fontSize:10, color: isDark?'#C9B8E8':'#8A7AA8', whiteSpace:'nowrap' }}>{String(inicioH).padStart(2,'0')}:00 — {String(finH).padStart(2,'0')}:00</div>
                       </div>
                     )}
                     {isToday && h===now.getHours() && (

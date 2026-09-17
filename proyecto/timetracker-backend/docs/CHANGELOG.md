@@ -143,3 +143,11 @@
   - **Sutileza semana (basado en imagen ref):** cada hora trabajada se resalta como wash lavanda `#F3EFFF` (dark `rgba(232,224,248,0.18)`) con borde izquierdo 3px `#E8AFAF`, ocupando 1 celda por hora; dos casillas contiguas (ej. 10-11) forman bloque continuo partido por la línea de hora, info solo en primera casilla (`horas + rango`).
 - **Validación:** `vite build` 52 modules OK, `tsc -b` sin errores.
 - **Referencia:** `frontend-ui-redesign-plan.md`
+
+## [2026-09-17] - Crear jornada por clic + etiquetas de estado
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - **Backend (Spring Boot):** migración `V10__add_origen.sql` (`origen VARCHAR(20) DEFAULT 'fichaje'`), `RegistroJornada.origen` + `RegistroDTO.origen` + `AttendanceMapper`; nuevo `AttendanceService.crearManual(fecha,horaInicio,horaFin,motivo,descripcion)` (valida motivo/descripción, `UNIQUE(usuario,fecha)` 409, calcula horas, `estado=JORNADA_FINALIZADA, origen=manual`, audit con `valorAnterior=null`); nuevo `POST /attendance/manual` 201 en `AttendanceController`.
+  - **Frontend:** nuevo `utils/estado.ts` `formatearEstado(estado,registro)` → `Jornada sin iniciar | Jornada iniciada | Jornada finalizada | Jornada agregada (manual) | Jornada modificada (editado) | En permiso`; `MonthCalendar`/`WeekCalendar`/`DetailPanel`/`AttendancePage` usan la etiqueta (no `SIN_INICIAR` raw); `CalendarPage` `EditContent` modo dual crear (`POST /manual` → *Jornada agregada*) vs editar (`PUT :id` → *Jornada modificada*), con `DraggableHoursBar` + `descripcionProyectos` + `motivo` obligatorios por clic en cualquier día/hora.
+- **Validación:** `mvn test` 55 OK, `mvn package` BUILD SUCCESS, `vite build` 53 modules OK.
+- **Referencia:** Solicitud usuario 17-09
