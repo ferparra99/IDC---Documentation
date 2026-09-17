@@ -27,15 +27,12 @@ function Shell() {
   if (!usuario) return <LoginPage />;
 
   const showBottomNav = bp === 'mobile';
-  const showRail = bp === 'tablet';
-  const showSidebar = bp === 'desktop';
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
-      {showSidebar && <Sidebar tab={tab} setTab={setTab} />}
-      {showRail && <Sidebar tab={tab} setTab={setTab} collapsed />}
+      {!showBottomNav && <Sidebar tab={tab} setTab={setTab} />}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, maxWidth: 1100, width: '100%', margin: '0 auto', padding: showBottomNav ? '16px 16px 80px' : '16px 24px 24px' }}>
+        <div style={{ flex: 1, maxWidth: 1440, width: '100%', margin: '0 auto', padding: showBottomNav ? '12px 12px 80px' : '12px 16px 16px' }}>
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
             <div style={{ fontSize: 13 }}>
               <strong style={{ fontFamily: 'Fraunces, serif' }}>{usuario.nombre}</strong>
