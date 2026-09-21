@@ -8,6 +8,7 @@ export function AttendancePage() {
   const [estado, setEstado] = useState<EstadoJornada>("SIN_INICIAR");
   const [registro, setRegistro] = useState<RegistroDTO | null>(null);
   const [descripcion, setDescripcion] = useState("");
+  const [descuentaAlmuerzo, setDescuentaAlmuerzo] = useState(true);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
@@ -27,7 +28,7 @@ export function AttendancePage() {
   const finalizar = async () => {
     if (!descripcion.trim()) { setMensaje("Describe proyectos antes de finalizar."); return; }
     setCargando(true); setMensaje(null);
-    try { await api.post("/attendance/finish", { descripcionProyectos: descripcion }); setDescripcion(""); await cargarEstado(); }
+    try { await api.post("/attendance/finish", { descripcionProyectos: descripcion, descuentaAlmuerzo }); setDescripcion(""); await cargarEstado(); }
     catch (err) { setMensaje(err instanceof ApiError ? err.message : "Error al finalizar."); }
     finally { setCargando(false); }
   };
@@ -61,11 +62,16 @@ export function AttendancePage() {
             style={{ width:'100%', padding:10, borderRadius:8, border:'1px solid var(--border-subtle)', background: puedeFinalizar?'var(--bg-base)':'var(--bg-surface-hover)', color:'var(--text-primary)', fontSize:16, opacity: puedeFinalizar?1:0.6, resize:'vertical', minHeight:80, maxHeight:220, overflow:'auto' }}
           />
           <div style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:6 }}>Requerido solo al finalizar. Queda auditado.</div>
+          <label style={{ display:'flex', alignItems:'center', gap:8, marginTop:10, fontSize:13, color:'var(--text-secondary)', cursor: puedeFinalizar ? 'pointer' : 'not-allowed', opacity: puedeFinalizar ? 1 : 0.6 }}>
+            <input type="checkbox" checked={descuentaAlmuerzo} onChange={e=>setDescuentaAlmuerzo(e.target.checked)} disabled={!puedeFinalizar} />
+            hora almuerzo (resta 1h) — activo por defecto
+          </label>
+          {!descuentaAlmuerzo && puedeFinalizar && <div style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:4 }}>Desactivado: no se restará la hora de almuerzo (se sumará 1h).</div>}
         </div>
 
         {(estado === "JORNADA_FINALIZADA") && (
           <div style={{ background:'#16302A', border:'1px solid #6FCB9A', borderLeft:'3px solid #6FCB9A', borderRadius:10, padding:12, color:'#A8E9C4', fontSize:13 }}>
-            ✓ {formatearEstado(estado, registro)} · Total {((registro?.horasOrdinarias??0)+(registro?.horasExtraDiurnas??0)+(registro?.horasExtraNocturnas??0)+(registro?.horasRecargoNocturno??0)+(registro?.horasDominicalFestivo??0)).toFixed(2)}h
+            ✓ {formatearEstado(estado, registro)} · Total {((registro?.horasOrdinarias??0)+(registro?.horasExtraDiurnas??0)+(registro?.horasExtraNocturnas??0)+(registro?.horasRecargoNocturno??0)+(registro?.horasDominicalFestivo??0)).toFixed(2)}h {registro?.descuentaAlmuerzo ? '· con almuerzo -1h' : registro?.descuentaAlmuerzo===false ? '· sin almuerzo' : ''}
             <div style={{ height:6, background:'rgba(255,255,255,0.2)', borderRadius:9999, marginTop:8, overflow:'hidden' }}>
               <div style={{ width:`${Math.min(100, (((registro?.horasOrdinarias??0)/8)*100))}%`, height:'100%', background:'#6FCB9A' }} />
             </div>

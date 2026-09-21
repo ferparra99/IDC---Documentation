@@ -39,13 +39,13 @@ export function TripsPage(){
         {viajes.length===0 && <p style={{ fontSize:13, color:'var(--text-secondary)', background:'var(--bg-surface)', padding:12, borderRadius:10, border:'1px solid var(--border-subtle)' }}>Sin viajes este día.</p>}
         {viajes.map(v=>(
           <div key={v.id} style={{ border:'1px solid var(--border-subtle)', borderLeft:'3px solid var(--accent-primary)', borderRadius:10, padding:12, background:'var(--bg-surface)', display:'flex', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
-            <div style={{ fontSize:13 }}><strong>{v.puntoPartida} → {v.puntoFinal}</strong><div style={{color:'var(--text-secondary)'}}>{v.descripcion}</div><div style={{color:'var(--accent-primary)', fontWeight:700, fontFamily:'JetBrains Mono, monospace'}}>${v.valor.toLocaleString("es-CO")}</div></div>
+            <div style={{ fontSize:13 }}><strong>{v.puntoPartida} → {v.puntoFinal}</strong><div style={{color:'var(--text-secondary)'}}>{v.descripcion}</div><div style={{color:'var(--accent-primary)', fontWeight:700, fontFamily:'Outfit, monospace'}}>${v.valor.toLocaleString("es-CO")}</div></div>
             <div style={{ display:'flex', gap:6, alignItems:'center' }}><button onClick={()=>onEditar(v)} style={btnSec}>Editar</button><button onClick={()=>onEliminar(v.id)} style={btnDanger}>Eliminar</button></div>
           </div>
         ))}
       </div>
 
-      <h3 style={{ fontFamily:'Fraunces, serif' }}>{editId?"Editar viaje":"Nuevo viaje"}</h3>
+      <h3 style={{ fontFamily:'Outfit, sans-serif' }}>{editId?"Editar viaje":"Nuevo viaje"}</h3>
       <form onSubmit={onSubmit} style={{ display:'flex', flexDirection:'column', gap:12, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, padding:16, maxWidth:560 }}>
         <label style={eti}>Punto de partida<input required value={form.puntoPartida} onChange={e=>setForm({...form, puntoPartida:e.target.value})} style={inp} /></label>
         <label style={eti}>Punto final<input required value={form.puntoFinal} onChange={e=>setForm({...form, puntoFinal:e.target.value})} style={inp} /></label>

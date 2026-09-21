@@ -80,6 +80,10 @@ public class RegistroJornada {
     @Builder.Default
     private String origen = "fichaje";
 
+    @Column(name = "descuenta_almuerzo", nullable = false)
+    @Builder.Default
+    private Boolean descuentaAlmuerzo = true;
+
     @Column(name = "creado_en", nullable = false, updatable = false, columnDefinition = "timestamptz")
     private Instant creadoEn;
 
@@ -97,6 +101,7 @@ public class RegistroJornada {
         if (horasExtraNocturnas == null) horasExtraNocturnas = BigDecimal.ZERO;
         if (horasRecargoNocturno == null) horasRecargoNocturno = BigDecimal.ZERO;
         if (horasDominicalFestivo == null) horasDominicalFestivo = BigDecimal.ZERO;
+        if (descuentaAlmuerzo == null) descuentaAlmuerzo = true;
     }
 
     @PreUpdate

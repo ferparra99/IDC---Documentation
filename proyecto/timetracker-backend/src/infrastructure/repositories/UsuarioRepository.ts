@@ -39,4 +39,27 @@ export class UsuarioRepository {
     );
     return rows[0] ? aUsuario(rows[0]) : null;
   }
+
+  async existePorEmail(email: string): Promise<boolean> {
+    const { rows } = await this.pool.query<{ existe: boolean }>(
+      "SELECT EXISTS(SELECT 1 FROM usuarios WHERE email = $1) AS existe",
+      [email]
+    );
+    return rows[0]?.existe ?? false;
+  }
+
+  async crear(usuario: Omit<Usuario, "id"> & { id?: string }): Promise<Usuario> {
+    const { rows } = await this.pool.query<FilaUsuario>(
+      "INSERT INTO usuarios (nombre, email, password_hash, rol, activo) VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, email, password_hash, rol, activo",
+      [usuario.nombre, usuario.email, usuario.passwordHash, usuario.rol, usuario.activo]
+    );
+    return aUsuario(rows[0]);
+  }
+
+  async listarTodos(): Promise<Usuario[]> {
+    const { rows } = await this.pool.query<FilaUsuario>(
+      "SELECT id, nombre, email, password_hash, rol, activo FROM usuarios ORDER BY creado_en DESC"
+    );
+    return rows.map(aUsuario);
+  }
 }

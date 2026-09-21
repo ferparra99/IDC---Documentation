@@ -24,6 +24,7 @@ export interface RegistroDTO {
   horasDominicalFestivo: number;
   editadoManualmente: boolean;
   origen?: string | null;
+  descuentaAlmuerzo?: boolean | null;
 }
 
 export interface DiaCalendarioDTO {
@@ -44,7 +45,7 @@ export interface ResumenSemanalDTO {
 }
 
 export type TipoPermiso = "PARCIAL" | "COMPLETO";
-export type EstadoPermiso = "BORRADOR" | "ENVIADO";
+export type EstadoPermiso = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO";
 
 export interface PermisoDTO {
   id: string;

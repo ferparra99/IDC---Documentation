@@ -1,5 +1,5 @@
 export type TipoPermiso = "PARCIAL" | "COMPLETO";
-export type EstadoPermiso = "BORRADOR" | "ENVIADO";
+export type EstadoPermiso = "BORRADOR" | "ENVIADO" | "APROBADO" | "RECHAZADO";
 
 export interface PermisoProps {
   id: string;

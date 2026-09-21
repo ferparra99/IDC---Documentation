@@ -34,6 +34,7 @@ public class AttendanceMapper {
                 .horasDominicalFestivo(r.getHorasDominicalFestivo())
                 .editadoManualmente(r.isEditadoManualmente())
                 .origen(r.getOrigen())
+                .descuentaAlmuerzo(r.getDescuentaAlmuerzo())
                 .build();
     }
 

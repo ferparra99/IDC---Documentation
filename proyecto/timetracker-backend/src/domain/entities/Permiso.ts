@@ -57,6 +57,20 @@ export class Permiso {
     this.props.estado = "ENVIADO";
   }
 
+  aprobar(): void {
+    if (this.props.estado !== "ENVIADO") {
+      throw new TransicionInvalidaError("Solo se pueden aprobar permisos en estado ENVIADO.");
+    }
+    this.props.estado = "APROBADO";
+  }
+
+  rechazar(): void {
+    if (this.props.estado !== "ENVIADO") {
+      throw new TransicionInvalidaError("Solo se pueden rechazar permisos en estado ENVIADO.");
+    }
+    this.props.estado = "RECHAZADO";
+  }
+
   toProps(): PermisoProps {
     return { ...this.props };
   }

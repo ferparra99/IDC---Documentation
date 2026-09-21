@@ -15,4 +15,8 @@ public interface PermisoRepository extends JpaRepository<Permiso, UUID> {
     List<Permiso> findByUsuarioIdAndFechaSolicitud(UUID usuarioId, LocalDate fecha);
 
     List<Permiso> findByEstado(EstadoPermiso estado);
+
+    List<Permiso> findByEstadoOrderByFechaSolicitudDesc(EstadoPermiso estado);
+
+    List<Permiso> findAllByOrderByFechaSolicitudDesc();
 }
