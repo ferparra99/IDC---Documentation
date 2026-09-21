@@ -1,12 +1,19 @@
-const items = [
+import { useAuth } from "../context/AuthContext";
+
+const allItems = [
   { id: 'fichaje', label: 'Fichaje', icon: '◷' },
   { id: 'calendario', label: 'Calendario', icon: '▦' },
   { id: 'permisos', label: 'Permisos', icon: '✉' },
   { id: 'viajes', label: 'Viajes', icon: '✈' },
   { id: 'reportes', label: 'Reportes', icon: '▭' },
+  { id: 'admin-permisos', label: 'Aprobar', icon: '✓', adminOnly: true },
+  { id: 'admin-usuarios', label: 'Usuarios', icon: '＋', adminOnly: true },
 ] as const;
 
 export function BottomNav({ tab, setTab }: { tab: string; setTab: (t: any) => void }) {
+  const { usuario } = useAuth();
+  const isAdmin = usuario?.rol === 'administrador';
+  const items = allItems.filter(it => !(it as any).adminOnly || isAdmin);
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,

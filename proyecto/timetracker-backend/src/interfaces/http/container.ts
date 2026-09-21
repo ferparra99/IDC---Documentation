@@ -38,7 +38,7 @@ const holidaySyncService = new HolidaySyncService(festivoRepository);
 export const container = {
   authService: new AuthService(usuarioRepository, refreshTokenRepository),
   configService: new ConfigService(configuracionRepository),
-  attendanceService: new AttendanceService(registroJornadaRepository, configuracionRepository, auditLogRepository),
+  attendanceService: new AttendanceService(registroJornadaRepository, configuracionRepository, auditLogRepository, permisoRepository),
   calendarService: new CalendarService(registroJornadaRepository, festivoRepository, holidaySyncService),
   permisoService: new PermisoService(permisoRepository, registroJornadaRepository, usuarioRepository, configuracionRepository),
   viajeService: new ViajeService(viajeRepository, configuracionRepository),

@@ -63,28 +63,38 @@ public class AttendanceController {
 
     @PostMapping("/finish")
     public ResponseEntity<Map<String, Object>> finish(@AuthenticationPrincipal String userId,
-                                                      @RequestBody(required = false) Map<String, String> body) {
-        String descripcion = body != null ? body.get("descripcionProyectos") : null;
+                                                      @RequestBody(required = false) Map<String, Object> body) {
+        String descripcion = body != null && body.get("descripcionProyectos") != null ? String.valueOf(body.get("descripcionProyectos")) : null;
         if (descripcion == null || descripcion.isBlank()) {
             throw new ValidacionException("El campo 'descripcionProyectos' es obligatorio para finalizar la jornada.");
         }
+        Boolean descuenta = null;
+        if (body != null && body.get("descuentaAlmuerzo") != null) {
+            Object v = body.get("descuentaAlmuerzo");
+            descuenta = v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v));
+        }
         UUID uid = toUUID(userId);
-        RegistroJornada actualizado = service.finalizarJornada(uid, descripcion);
+        RegistroJornada actualizado = service.finalizarJornada(uid, descripcion, descuenta);
         RegistroDTO dto = mapper.toDTO(actualizado);
         return ResponseEntity.ok(Map.of("data", dto));
     }
 
     @PostMapping("/manual")
     public ResponseEntity<Map<String, Object>> crearManual(@AuthenticationPrincipal String userId,
-                                                           @RequestBody Map<String, String> body) {
-        String fechaStr = body != null ? body.get("fecha") : null;
-        String horaInicioStr = body != null ? body.get("horaInicio") : null;
-        String horaFinStr = body != null ? body.get("horaFin") : null;
-        String motivo = body != null ? body.get("motivo") : null;
-        String descripcion = body != null ? body.get("descripcionProyectos") : null;
+                                                           @RequestBody Map<String, Object> body) {
+        String fechaStr = body != null && body.get("fecha") != null ? String.valueOf(body.get("fecha")) : null;
+        String horaInicioStr = body != null && body.get("horaInicio") != null ? String.valueOf(body.get("horaInicio")) : null;
+        String horaFinStr = body != null && body.get("horaFin") != null ? String.valueOf(body.get("horaFin")) : null;
+        String motivo = body != null && body.get("motivo") != null ? String.valueOf(body.get("motivo")) : null;
+        String descripcion = body != null && body.get("descripcionProyectos") != null ? String.valueOf(body.get("descripcionProyectos")) : null;
         if (fechaStr == null || horaInicioStr == null || horaFinStr == null || motivo == null || descripcion == null
                 || fechaStr.isBlank() || motivo.isBlank() || descripcion.isBlank()) {
             throw new ValidacionException("Los campos 'fecha', 'horaInicio', 'horaFin', 'motivo' y 'descripcionProyectos' son obligatorios.");
+        }
+        Boolean descuenta = null;
+        if (body != null && body.get("descuentaAlmuerzo") != null) {
+            Object v = body.get("descuentaAlmuerzo");
+            descuenta = v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v));
         }
         LocalDate fecha;
         Instant horaInicio;
@@ -97,7 +107,7 @@ public class AttendanceController {
             throw new ValidacionException("Formato de fecha inválido (fecha YYYY-MM-DD, horas ISO8601 Instant).");
         }
         UUID uid = toUUID(userId);
-        RegistroJornada creado = service.crearManual(uid, fecha, horaInicio, horaFin, motivo, descripcion);
+        RegistroJornada creado = service.crearManual(uid, fecha, horaInicio, horaFin, motivo, descripcion, descuenta);
         RegistroDTO dto = mapper.toDTO(creado);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("data", dto));
     }
@@ -105,12 +115,17 @@ public class AttendanceController {
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> editar(@AuthenticationPrincipal String userId,
                                                       @PathVariable UUID id,
-                                                      @RequestBody Map<String, String> body) {
-        String horaInicioStr = body != null ? body.get("horaInicio") : null;
-        String horaFinStr = body != null ? body.get("horaFin") : null;
-        String motivo = body != null ? body.get("motivo") : null;
+                                                      @RequestBody Map<String, Object> body) {
+        String horaInicioStr = body != null && body.get("horaInicio") != null ? String.valueOf(body.get("horaInicio")) : null;
+        String horaFinStr = body != null && body.get("horaFin") != null ? String.valueOf(body.get("horaFin")) : null;
+        String motivo = body != null && body.get("motivo") != null ? String.valueOf(body.get("motivo")) : null;
         if (horaInicioStr == null || horaFinStr == null || motivo == null || motivo.isBlank()) {
             throw new ValidacionException("Los campos 'horaInicio', 'horaFin' y 'motivo' son obligatorios.");
+        }
+        Boolean descuenta = null;
+        if (body != null && body.get("descuentaAlmuerzo") != null) {
+            Object v = body.get("descuentaAlmuerzo");
+            descuenta = v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v));
         }
         Instant horaInicio;
         Instant horaFin;
@@ -121,7 +136,7 @@ public class AttendanceController {
             throw new ValidacionException("Formato de fecha inválido, se espera ISO8601 (Instant).");
         }
         UUID uid = toUUID(userId);
-        RegistroJornada resultado = service.editarManual(uid, id, horaInicio, horaFin, motivo);
+        RegistroJornada resultado = service.editarManual(uid, id, horaInicio, horaFin, motivo, descuenta);
         RegistroDTO dto = mapper.toDTO(resultado);
         return ResponseEntity.ok(Map.of("data", dto));
     }

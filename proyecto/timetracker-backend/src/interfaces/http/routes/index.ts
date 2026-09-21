@@ -6,6 +6,7 @@ import { calendarRoutes } from "./calendarRoutes";
 import { leavesRoutes } from "./leaveRoutes";
 import { tripsRoutes } from "./tripRoutes";
 import { reportsRoutes } from "./reportRoutes";
+import { userRoutes } from "./userRoutes";
 
 export const apiRouter = Router();
 
@@ -16,3 +17,4 @@ apiRouter.use("/calendar", calendarRoutes);
 apiRouter.use("/leaves", leavesRoutes);
 apiRouter.use("/trips", tripsRoutes);
 apiRouter.use("/reports", reportsRoutes);
+apiRouter.use("/users", userRoutes);

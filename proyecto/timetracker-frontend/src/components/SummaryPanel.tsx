@@ -17,9 +17,9 @@ export function SummaryPanel({ resumen, view }: { resumen: ResumenSemanalDTO | n
       <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', fontSize:11 }}>
         {segments.map(s=>{
           const col=colorCategoria(s.cat,isDark);
-          return <span key={s.label} style={{ display:'inline-flex', alignItems:'center', gap:6, color:'var(--text-secondary)' }}><span style={{ width:10, height:10, borderRadius:3, background: col.border, display:'inline-block' }} />{s.label} <strong style={{ color: col.text, fontFamily:'JetBrains Mono, monospace' }}>{s.valor}h</strong></span>;
+          return <span key={s.label} style={{ display:'inline-flex', alignItems:'center', gap:6, color:'var(--text-secondary)' }}><span style={{ width:10, height:10, borderRadius:3, background: col.border, display:'inline-block' }} />{s.label} <strong style={{ color: col.text, fontFamily:'Outfit, monospace' }}>{s.valor}h</strong></span>;
         })}
-        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--text-tertiary)', fontFamily:'JetBrains Mono, monospace' }}>{resumen.horasTrabajadas}h / {total.toFixed(1)}h</span>
+        <span style={{ marginLeft:'auto', fontSize:10, color:'var(--text-tertiary)', fontFamily:'Outfit, monospace' }}>{resumen.horasTrabajadas}h / {total.toFixed(1)}h</span>
       </div>
       {/* barra única autoincrementable */}
       <div style={{ display:'flex', height: 18, borderRadius:9999, overflow:'hidden', background:'var(--border-subtle)', border:'1px solid var(--border-subtle)' }} role="progressbar" aria-valuenow={resumen.horasTrabajadas}>

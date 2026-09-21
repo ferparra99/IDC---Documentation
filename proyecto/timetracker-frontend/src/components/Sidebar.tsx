@@ -1,18 +1,24 @@
 import { useState, useEffect } from "react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
+import { useAuth } from "../context/AuthContext";
 
-const items = [
+const allItems = [
   { id: 'fichaje', label: 'Fichaje', icon: '◷' },
   { id: 'calendario', label: 'Calendario', icon: '▦' },
   { id: 'permisos', label: 'Permisos', icon: '✉' },
   { id: 'viajes', label: 'Viajes', icon: '✈' },
   { id: 'reportes', label: 'Reportes', icon: '▭' },
+  { id: 'admin-permisos', label: 'Aprobar permisos', icon: '✓', adminOnly: true },
+  { id: 'admin-usuarios', label: 'Crear usuarios', icon: '＋', adminOnly: true },
 ] as const;
 
 export function Sidebar({ tab, setTab }: { tab: string; setTab: (t: any) => void }) {
   const bp = useBreakpoint();
+  const { usuario } = useAuth();
   const isMobile = bp === 'mobile';
   if (isMobile) return null;
+  const isAdmin = usuario?.rol === 'administrador';
+  const items = allItems.filter(it => !(it as any).adminOnly || isAdmin);
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem('sidebar:collapsed') !== 'false'; } catch { return true; }
@@ -47,7 +53,7 @@ export function Sidebar({ tab, setTab }: { tab: string; setTab: (t: any) => void
       }}
     >
       <div style={{ display:'flex', alignItems:'center', justifyContent: expanded ? 'space-between':'center', gap:8, marginBottom:12, minHeight:24 }}>
-        <div style={{ fontFamily:'Fraunces, serif', fontWeight:700, fontSize: expanded?16:14, whiteSpace:'nowrap', overflow:'hidden', flex: expanded?1:undefined, textAlign: expanded?'left':'center' }}>
+        <div style={{ fontFamily:'Outfit, sans-serif', fontWeight:700, fontSize: expanded?16:14, whiteSpace:'nowrap', overflow:'hidden', flex: expanded?1:undefined, textAlign: expanded?'left':'center' }}>
           {expanded ? '◈ Timetracker' : '◈'}
         </div>
         <button

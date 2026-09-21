@@ -1,10 +1,20 @@
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { api, ApiError } from "../api/client";
 import { PermisoDTO, PreviewPermisoDTO, TipoPermiso } from "../api/types";
 import { TopToolbar } from "../components/TopToolbar";
 
 type Vista = "formulario" | "previsualizacion" | "enviado";
 const FORM_VACIO = { fechaSolicitud: "", horas: "", tipo: "PARCIAL" as TipoPermiso, descripcion: "" };
+
+function colorEstado(estado: string): { bg: string; color: string; label: string } {
+  switch (estado) {
+    case "BORRADOR": return { bg: "var(--bg-surface)", color: "var(--text-tertiary)", label: "Borrador" };
+    case "ENVIADO": return { bg: "#FEF3C7", color: "#92400E", label: "Enviado · pendiente" };
+    case "APROBADO": return { bg: "#DCFCE7", color: "#166534", label: "Aprobado ✓" };
+    case "RECHAZADO": return { bg: "#FEE2E2", color: "#991B1B", label: "Rechazado ✕" };
+    default: return { bg: "var(--bg-surface)", color: "var(--text-secondary)", label: estado };
+  }
+}
 
 export function LeavesPage() {
   const [vista, setVista] = useState<Vista>("formulario");
@@ -15,8 +25,19 @@ export function LeavesPage() {
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [exito, setExito] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<PermisoDTO[]>([]);
+  const [cargandoHist, setCargandoHist] = useState(true);
 
   const cargarPreview = async (id:string)=>{ const data=await api.get<PreviewPermisoDTO>(`/leaves/${id}/preview`); setPreview(data); setVista("previsualizacion"); };
+  const cargarHistorial = async () => {
+    setCargandoHist(true);
+    try {
+      const data = await api.get<PermisoDTO[]>("/leaves");
+      const arr = Array.isArray(data) ? data : (data as any).data ?? [];
+      setHistorial(arr);
+    } catch { /* silencioso */ } finally { setCargandoHist(false); }
+  };
+  useEffect(() => { cargarHistorial(); }, []);
   const onSubmit = async (e:FormEvent)=>{
     e.preventDefault(); setError(null); setExito(null); setCargando(true);
     try{
@@ -36,6 +57,7 @@ export function LeavesPage() {
       setConfirmando(false);
       setVista("enviado");
       setExito("✓ Permiso enviado correctamente. Recibirás confirmación del administrador.");
+      cargarHistorial();
     }
     catch(err){
       const msg = err instanceof ApiError ? err.message : "No se pudo enviar.";
@@ -75,8 +97,8 @@ export function LeavesPage() {
         {vista==="previsualizacion" && preview && (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div style={{ border:'1px solid var(--border-subtle)', borderRadius:12, padding:16, background:'var(--bg-surface)' }}>
-              <h3 style={{ marginTop:0, fontFamily:'Fraunces, serif' }}>Empleado</h3><p style={{ fontSize:13, color:'var(--text-secondary)' }}>{preview.empleado.nombre} — {preview.empleado.email}</p>
-              <h3 style={{ fontFamily:'Fraunces, serif' }}>Permiso</h3>
+              <h3 style={{ marginTop:0, fontFamily:'Outfit, sans-serif' }}>Empleado</h3><p style={{ fontSize:13, color:'var(--text-secondary)' }}>{preview.empleado.nombre} — {preview.empleado.email}</p>
+              <h3 style={{ fontFamily:'Outfit, sans-serif' }}>Permiso</h3>
               <ul style={{ fontSize:13, paddingLeft:18, color:'var(--text-secondary)' }}><li>Día: {preview.permiso.fechaSolicitud}</li><li>Horas: {preview.permiso.horas}h</li><li>Tipo: {preview.permiso.tipo}</li><li>Descripción: {preview.permiso.descripcion}</li></ul>
             </div>
             {error && <p style={errSt}>{error}</p>}
@@ -87,6 +109,33 @@ export function LeavesPage() {
         {confirmando && (
           <div style={overlay}><div style={modal}><p style={{marginTop:0}}>¿Confirmas el envío?</p><div style={{display:'flex', gap:8, justifyContent:'flex-end'}}><button onClick={()=>setConfirmando(false)} style={btnSec}>Cancelar</button><button onClick={onConfirmar} disabled={cargando} style={btnPri}>{cargando?"Enviando...":"Confirmar"}</button></div></div></div>
         )}
+
+        {/* Historial apartado */}
+        <div style={{ marginTop:20, background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, padding:14 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+            <h3 style={{ margin:0, fontFamily:'Outfit, sans-serif', fontSize:14 }}>Mis solicitudes</h3>
+            <button onClick={cargarHistorial} style={{ ...btnSec, padding:'6px 10px', fontSize:12 }}>Recargar</button>
+          </div>
+          {cargandoHist ? <p style={{ color:'var(--text-secondary)', fontSize:13, marginTop:10 }}>Cargando...</p> : historial.length===0 ? (
+            <p style={{ color:'var(--text-secondary)', fontSize:13, marginTop:10 }}>Aún no has solicitado permisos. Aparecerán aquí con su estado (aprobado/rechazado).</p>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:12, maxHeight:360, overflow:'auto' }}>
+              {historial.map(p=>{
+                const est = colorEstado(p.estado);
+                return (
+                  <div key={p.id} style={{ border:'1px solid var(--border-subtle)', borderRadius:10, padding:10, background:'var(--bg-base)', display:'flex', flexDirection:'column', gap:6 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <span style={{ fontWeight:700, fontSize:12 }}>{p.fechaSolicitud} · {p.tipo} · {p.horas}h</span>
+                      <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:9999, background: est.bg, color: est.color, border:'1px solid var(--border-subtle)' }}>{est.label}</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'var(--text-secondary)' }}>{p.descripcion}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:10, marginBottom:0 }}>Los permisos aprobados también se marcan en el <strong>Calendario</strong> el día correspondiente.</p>
+        </div>
       </div>
     </div>
   );

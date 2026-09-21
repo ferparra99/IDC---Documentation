@@ -161,3 +161,33 @@
 - **Cambio:** Backend `V10__add_origen.sql` + `crearManual`/`POST /attendance/manual` (Jornada agregada) + frontend `utils/estado.ts` (`Jornada sin iniciar/iniciada/finalizada/agregada/modificada`) y `CalendarPage` modo crear/editar con motivo y descripción por clic en cualquier día/hora.
 - **Validación:** `mvn test` 55 OK, `mvn package` BUILD SUCCESS, `vite build` 53 modules OK.
 - **Referencia:** Solicitud usuario 17-09
+
+## [2026-09-21] - Admin: aprobación de permisos y creación de usuarios + historial y calendario
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - **Backend (Spring + Node):** `EstadoPermiso` ampliado a `BORRADOR|ENVIADO|APROBADO|RECHAZADO` (`V11__add_estado_permiso_aprobado_rechazado.sql` / `010_permiso_aprobado_rechazado.sql`); `PermisoService` con `aprobar`/`rechazar`/`listarPendientes`; nuevos endpoints `GET /leaves/pendientes`, `GET /leaves/admin`, `POST /leaves/:id/aprobar`, `POST /leaves/:id/rechazar` (solo admin); `UserController`/`usersController` con `GET /users` y `POST /users` (crea `empleado` con validación email único, password ≥6, hash bcrypt, `descuentaAlmuerzo`).
+  - **Frontend:** 2 pestañas nuevas solo para `administrador` (`admin-permisos` ✓ Aprobar permisos, `admin-usuarios` ＋ Crear usuarios) en `Sidebar`/`BottomNav` (`App.tsx` `Tab` extendido, filtrado por `rol`); `AdminLeavesPage` (lista `ENVIADO` con aprobar/rechazar) y `AdminUsersPage` (form + lista); `LeavesPage` ahora con apartado "Mis solicitudes" (historial `GET /leaves` con badges por estado); `CalendarPage` con `permisosMap` (`GET /leaves`) y badges en `MonthCalendar`/`WeekCalendar` (verde aprobado, amarillo pendiente, rojo rechazado) + wash sutil.
+  - **Calendario - bloqueos:** `CalendarPage/EditContent` bloquea `DraggableHoursBar` y `Guardar` si `permiso ENVIADO/APROBADO` existe para ese día o si `dia.fecha > hoy` (solo desde hoy hacia atrás) — tanto frontend como backend (`AttendanceService.editarManual`/`crearManual` validan `fecha > hoy` y `permisoRepository`).
+- **Validación:** `tsc` OK, `vite build 55 modules`, `mvn BUILD SUCCESS`, `docker compose up --build` OK migración `v11`, pruebas manuales crear usuario → crear permiso → pendientes → aprobar/rechazar → historial y calendario.
+- **Referencia:** Solicitud usuario 21-09 "el rol admin va a tener 2 pestañas nuevas" + "en la pestaña de permisos agrega historial y en calendario debe aparecer cuando se pidió permiso" + "desde el dia actual, los dias posteriores las barras no se pueden modificar"
+
+## [2026-09-21] - Login: sugerencias de correo y ojito de contraseña
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:** `LoginPage` con `autocomplete="email"` + `<datalist>` + dropdown custom filtrado desde `localStorage[login:emails]` (persiste hasta 10 emails, incluye `admin@empresa.com` por defecto, guarda tras login exitoso) y campo contraseña con toggle `👁/🙈` (`type text/password`, `autocomplete current-password`, botón con `aria-label`).
+- **Validación:** `tsc` OK, `vite build`, `docker compose up --build -d frontend` OK.
+- **Referencia:** Solicitud usuario 21-09 "quiero que en login 1 me muestre el campo de sugerencias para correo 2 en la contraseña aparezca el ojito"
+
+## [2026-09-21] - Hora almuerzo: checkbox resta 1h en fichaje y calendario
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - **DB:** `V12__add_descuenta_almuerzo.sql` (`ALTER TABLE registro_jornada ADD COLUMN descuenta_almuerzo BOOLEAN NOT NULL DEFAULT true`).
+  - **Backend Spring:** `RegistroJornada.descuentaAlmuerzo`, `RegistroDTO.descuentaAlmuerzo`, `AttendanceMapper`, `AttendanceService` con `aplicarDescuentoAlmuerzo()` (resta 1h priorizando `ordinarias→extraDiurnas→recargo→extraNocturnas→dominical`, redondeo 2 dec) en `finalizarJornada`/`crearManual`/`editarManual` (overload con `Boolean descuentaAlmuerzo`, default `true`); `AttendanceController` acepta `descuentaAlmuerzo` en `POST /finish`, `POST /manual`, `PUT /:id`; `snapshot` incluye campo; test `AttendanceServiceTest` actualizado con mock `PermisoRepository`.
+  - **Frontend:** `api/types.ts` `descuentaAlmuerzo?: boolean`; `AttendancePage` checkbox "hora almuerzo (resta 1h) — activo por defecto" (`useState(true)`) enviado en `POST /attendance/finish`; `CalendarPage/EditContent` checkbox con estado inicial `registro?.descuentaAlmuerzo ?? true`, enviado en `PUT` y `POST /manual`, con label `· -1h / +1h si desactivas`.
+- **Validación:** `9h (08:00-17:00) con true → 8h (7 ordinarias) / con false → 9h (8 ordinarias)` y edición `7→8→7` OK vía `curl`; `tsc` OK, `vite build 217.09 kB`, `mvn BUILD SUCCESS`.
+- **Referencia:** Solicitud usuario 21-09 "agrega un checkbox que por defecto este activo que diga 'hora almuerzo', si esta activo tiene que restar una hora"
+
+## [2026-09-21] - Tipografía Outfit (Google Fonts)
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:** `theme.css` `@import Outfit:wght@400;500;600;700` y `body {font-family: 'Outfit'}` + `.mono` a `'Outfit'`; reemplazo masivo `Fraunces`/`Inter`/`JetBrains Mono` → `Outfit` en `App.tsx`, `TopToolbar`, `Sidebar`, `SummaryPanel`, `DetailPanel`, `MonthCalendar`, `WeekCalendar`, `AttendancePage`, `CalendarPage`, `LeavesPage`, `TripsPage`, `AdminUsersPage`, `LoginPage`.
+- **Validación:** `vite build 215.75 kB`, `docker compose up --build -d frontend` OK.
+- **Referencia:** Solicitud usuario 21-09 "cambia el tipo de fuente a outfit de google fonts"

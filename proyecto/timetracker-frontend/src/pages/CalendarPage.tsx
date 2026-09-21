@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { api, ApiError } from "../api/client";
-import { DiaCalendarioDTO, RegistroDTO, ResumenSemanalDTO } from "../api/types";
+import { DiaCalendarioDTO, RegistroDTO, ResumenSemanalDTO, PermisoDTO } from "../api/types";
 import { MonthCalendar } from "../components/MonthCalendar";
 import { WeekCalendar } from "../components/WeekCalendar";
 import { SummaryPanel } from "../components/SummaryPanel";
@@ -30,6 +30,7 @@ export function CalendarPage() {
   const [weekRegistros, setWeekRegistros] = useState<Record<string,RegistroDTO>>({});
   const [diasExtras, setDiasExtras] = useState<DiaCalendarioDTO[]>([]);
   const [weekTick, setWeekTick] = useState(0);
+  const [permisosMap, setPermisosMap] = useState<Record<string, PermisoDTO>>({});
 
   const persistView = (v:View)=>{ setView(v); localStorage.setItem('calendarView', v); };
 
@@ -52,7 +53,22 @@ export function CalendarPage() {
       }
     }catch(err){ setError(err instanceof ApiError ? err.message : "No se pudo cargar el calendario."); }
   };
-  useEffect(()=>{ cargar(); }, [anio, mes]);
+  useEffect(()=>{ cargar(); cargarPermisos(); }, [anio, mes]);
+
+  const cargarPermisos = async ()=>{
+    try{
+      const data = await api.get<PermisoDTO[]>("/leaves");
+      const arr: PermisoDTO[] = Array.isArray(data) ? data : (data as any).data ?? [];
+      const map: Record<string, PermisoDTO> = {};
+      // si hay múltiples permisos mismo día, conservar el más relevante (APROBADO > ENVIADO > BORRADOR/RECHAZADO)
+      const prioridad: Record<string, number> = { APROBADO: 4, ENVIADO: 3, BORRADOR: 2, RECHAZADO: 1 };
+      arr.forEach(p=>{
+        const cur = map[p.fechaSolicitud];
+        if(!cur || (prioridad[p.estado] ?? 0) > (prioridad[cur.estado] ?? 0)) map[p.fechaSolicitud]=p;
+      });
+      setPermisosMap(map);
+    }catch{ /* silencioso */ }
+  };
 
   // fetch registros + resumen para vista semanal (se actualiza al cambiar de semana)
   useEffect(()=>{
@@ -79,7 +95,7 @@ export function CalendarPage() {
   const cambiarMes = (d:number)=>{ let nm=mes+d, na=anio; if(nm>12){nm=1;na++;} if(nm<1){nm=12;na--;} setMes(nm); setAnio(na); };
   const cambiarSemana = (d:number)=> setWeekAnchor(a=> addDays(a, d*7));
   const irHoy = ()=>{ const h=hoyYYYYMMDD(); setWeekAnchor(h); setDiaEditando(null); setRegistroDetalle(null); };
-  const handleGuardado = ()=>{ setDiaEditando(null); setRegistroDetalle(null); cargar(); setWeekTick(t=>t+1); };
+  const handleGuardado = ()=>{ setDiaEditando(null); setRegistroDetalle(null); cargar(); cargarPermisos(); setWeekTick(t=>t+1); };
 
   const weekDias: DiaCalendarioDTO[] = useMemo(()=>{
     const { lunes } = primerYUltimoDiaSemana(weekAnchor);
@@ -125,9 +141,9 @@ export function CalendarPage() {
     <div>
       <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap', marginBottom:8 }}>
         {view==='month' ? (
-          <><button onClick={()=>cambiarMes(-1)} style={btnSec}>←</button><h2 style={{ fontSize:18, margin:0, fontFamily:'Fraunces, serif' }}>{NOMBRES_MES[mes-1]} {anio}</h2><button onClick={()=>cambiarMes(1)} style={btnSec}>→</button></>
+          <><button onClick={()=>cambiarMes(-1)} style={btnSec}>←</button><h2 style={{ fontSize:18, margin:0, fontFamily:'Outfit, sans-serif' }}>{NOMBRES_MES[mes-1]} {anio}</h2><button onClick={()=>cambiarMes(1)} style={btnSec}>→</button></>
         ) : (
-          <><button onClick={()=>cambiarSemana(-1)} style={btnSec}>←</button><h2 style={{ fontSize:16, margin:0, fontFamily:'Fraunces, serif' }}>{tituloSemana}</h2><button onClick={()=>cambiarSemana(1)} style={btnSec}>→</button><button onClick={irHoy} style={{...btnSec, fontSize:12}}>Hoy</button></>
+          <><button onClick={()=>cambiarSemana(-1)} style={btnSec}>←</button><h2 style={{ fontSize:16, margin:0, fontFamily:'Outfit, sans-serif' }}>{tituloSemana}</h2><button onClick={()=>cambiarSemana(1)} style={btnSec}>→</button><button onClick={irHoy} style={{...btnSec, fontSize:12}}>Hoy</button></>
         )}
         <div style={{ flex:1 }} />
         <div style={{ display:'flex', background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:9999, padding:3, gap:4 }}>
@@ -144,16 +160,16 @@ export function CalendarPage() {
       <div style={{ display:'flex', gap:16, alignItems:'flex-start' }}>
         <div style={{ flex:1, minWidth:0 }}>
           {view === 'month' ? (
-            <MonthCalendar anio={anio} mes={mes} dias={dias} onSeleccionarDia={onSelectDia} />
+            <MonthCalendar anio={anio} mes={mes} dias={dias} permisosMap={permisosMap} onSeleccionarDia={onSelectDia} />
           ) : (
-            <WeekCalendar weekDias={weekDias} registrosMap={weekRegistros} selectedFecha={diaEditando?.fecha ?? null} onSelectDia={onSelectDia} todayStr={hoyStr} />
+            <WeekCalendar weekDias={weekDias} registrosMap={weekRegistros} permisosMap={permisosMap} selectedFecha={diaEditando?.fecha ?? null} onSelectDia={onSelectDia} todayStr={hoyStr} />
           )}
         </div>
 
         {/* desktop right panel */}
         {bp==='desktop' && diaEditando && (
           <div style={{ width:360, flexShrink:0, position:'sticky', top:16, display:'flex', flexDirection:'column', gap:12 }}>
-            <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />
+            <EditContent dia={diaEditando} registro={registroDetalle} permiso={permisosMap[diaEditando.fecha]} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />
             <DetailPanel resumen={resumenActivo} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} />
           </div>
         )}
@@ -161,13 +177,13 @@ export function CalendarPage() {
 
       {bp === 'mobile' && (
         <BottomSheet open={!!diaEditando} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}}>
-          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />}
+          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} permiso={permisosMap[diaEditando.fecha]} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />}
           {diaEditando && <div style={{marginTop:12}}><DetailPanel resumen={resumenActivo} registro={registroDetalle} /></div>}
         </BottomSheet>
       )}
       {bp === 'tablet' && (
         <Drawer open={!!diaEditando} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}}>
-          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />}
+          {diaEditando && <EditContent dia={diaEditando} registro={registroDetalle} permiso={permisosMap[diaEditando.fecha]} onClose={()=>{setDiaEditando(null); setRegistroDetalle(null);}} onGuardado={handleGuardado} />}
           {diaEditando && <div style={{marginTop:12}}><DetailPanel resumen={resumenActivo} registro={registroDetalle} /></div>}
         </Drawer>
       )}
@@ -176,37 +192,45 @@ export function CalendarPage() {
   );
 }
 
-function EditContent({ dia, registro: regProp, onClose, onGuardado }: { dia: DiaCalendarioDTO; registro: RegistroDTO|null; onClose:()=>void; onGuardado:()=>void }){
+function EditContent({ dia, registro: regProp, permiso, onClose, onGuardado }: { dia: DiaCalendarioDTO; registro: RegistroDTO|null; permiso?: PermisoDTO; onClose:()=>void; onGuardado:()=>void }){
   const [registro, setRegistro] = useState<RegistroDTO|null>(regProp);
   const [inicioMin, setInicioMin]=useState(8*60);
   const [finMin,setFinMin]=useState(17*60);
   const [motivo,setMotivo]=useState("");
   const [descripcion,setDescripcion]=useState("");
+  const [descuentaAlmuerzo, setDescuentaAlmuerzo]=useState<boolean>(()=> (regProp as any)?.descuentaAlmuerzo ?? true);
   const [error,setError]=useState<string|null>(null);
   const [guardando,setGuardando]=useState(false);
   const [loading,setLoading]=useState(!regProp && !!dia.registroId);
 
   useEffect(()=>{
-    if(regProp){ setRegistro(regProp); if(regProp.horaInicio24) setInicioMin(hhmmAMinutos(regProp.horaInicio24)); if(regProp.horaFin24) setFinMin(hhmmAMinutos(regProp.horaFin24)); if(regProp.descripcionProyectos) setDescripcion(regProp.descripcionProyectos); setLoading(false); return; }
-    if(!dia.registroId){ setRegistro(null); setLoading(false); return; }
+    if(regProp){ setRegistro(regProp); if(regProp.horaInicio24) setInicioMin(hhmmAMinutos(regProp.horaInicio24)); if(regProp.horaFin24) setFinMin(hhmmAMinutos(regProp.horaFin24)); if(regProp.descripcionProyectos) setDescripcion(regProp.descripcionProyectos); setDescuentaAlmuerzo((regProp as any).descuentaAlmuerzo ?? true); setLoading(false); return; }
+    if(!dia.registroId){ setRegistro(null); setDescuentaAlmuerzo(true); setLoading(false); return; }
     setLoading(true);
     api.get<RegistroDTO[]>(`/attendance?desde=${dia.fecha}&hasta=${dia.fecha}`).then(rs=>{
-      const r=rs[0]; if(r){ setRegistro(r); if(r.horaInicio24) setInicioMin(hhmmAMinutos(r.horaInicio24)); if(r.horaFin24) setFinMin(hhmmAMinutos(r.horaFin24)); if(r.descripcionProyectos) setDescripcion(r.descripcionProyectos); }
+      const r=rs[0]; if(r){ setRegistro(r); if(r.horaInicio24) setInicioMin(hhmmAMinutos(r.horaInicio24)); if(r.horaFin24) setFinMin(hhmmAMinutos(r.horaFin24)); if(r.descripcionProyectos) setDescripcion(r.descripcionProyectos); setDescuentaAlmuerzo((r as any).descuentaAlmuerzo ?? true); }
     }).catch(()=>setError("No se pudo cargar el detalle.")).finally(()=>setLoading(false));
   }, [dia.fecha, dia.registroId, regProp]);
 
   const esEdicion = !!registro;
+  const hoyStrLocal = hoyYYYYMMDD();
+  const esFutura = dia.fecha > hoyStrLocal;
+  const permisoBloquea = permiso && (permiso.estado === 'ENVIADO' || permiso.estado === 'APROBADO');
+  const bloqueadaPorFuturo = esFutura;
+  const bloqueada = !!permisoBloquea || bloqueadaPorFuturo;
+  const motivoBloqueo = bloqueadaPorFuturo ? `No se pueden modificar días futuros (${dia.fecha} > hoy ${hoyStrLocal}). Solo desde hoy hacia atrás.` : permisoBloquea ? `No se pueden modificar horas el ${dia.fecha}: existe permiso ${permiso!.tipo} ${permiso!.horas}h en estado ${permiso!.estado}.` : null;
   const guardar = async ()=>{
+    if(bloqueada){ setError(motivoBloqueo!); return; }
     if(!motivo.trim()){ setError("El motivo es obligatorio."); return; }
     if(!descripcion.trim()){ setError("La descripción de proyectos es obligatoria."); return; }
     if(finMin<=inicioMin){ setError("La hora de fin debe ser posterior al inicio."); return; }
     setGuardando(true); setError(null);
     try{
       if(esEdicion){
-        await api.put(`/attendance/${registro!.id}`, { horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo });
+        await api.put(`/attendance/${registro!.id}`, { horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo, descuentaAlmuerzo });
         // actualizar descripcion si cambió (via mismo endpoint no hay campo, se deja audit con motivo)
       } else {
-        await api.post(`/attendance/manual`, { fecha: dia.fecha, horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo, descripcionProyectos: descripcion });
+        await api.post(`/attendance/manual`, { fecha: dia.fecha, horaInicio: minutosAIsoBogota(dia.fecha, inicioMin), horaFin: minutosAIsoBogota(dia.fecha, finMin), motivo, descripcionProyectos: descripcion, descuentaAlmuerzo });
       }
       onGuardado();
     } catch(err){ setError(err instanceof ApiError ? err.message : "No se pudo guardar."); }
@@ -217,16 +241,28 @@ function EditContent({ dia, registro: regProp, onClose, onGuardado }: { dia: Dia
 
   return (
     <div style={{ background:'var(--bg-surface)', border:'1px solid var(--border-subtle)', borderRadius:12, padding:16 }}>
-      <h3 style={{ marginTop:0, fontSize:15, fontFamily:'Fraunces, serif', color:'var(--text-primary)' }}>{esEdicion ? 'Editar' : 'Agregar'} jornada — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</h3>
-      {!esEdicion && <p style={{ fontSize:12, color:'var(--text-secondary)', marginTop:-8, marginBottom:8 }}>No hay registro este día. Ajusta el rango y agrega las horas trabajadas (quedará como <em>Jornada agregada</em>).</p>}
-      <DraggableHoursBar inicioMin={inicioMin} finMin={finMin} onChange={(i,f)=>{setInicioMin(i); setFinMin(f);}} />
-      <p style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:4 }}>No cruza medianoche en esta vista. {esEdicion ? 'Guardar quedará como Jornada modificada.' : 'Se creará como Jornada agregada.'}</p>
+      <h3 style={{ marginTop:0, fontSize:15, fontFamily:'Outfit, sans-serif', color:'var(--text-primary)' }}>{esEdicion ? 'Editar' : 'Agregar'} jornada — {dia.fecha} {dia.nombreFestivo && <span style={{color:'var(--accent-danger)', fontSize:12}}>({dia.nombreFestivo})</span>}</h3>
+      {bloqueada && (
+        <div style={{ background: bloqueadaPorFuturo ? '#F1F5F9' : permiso!.estado==='APROBADO' ? '#DCFCE7' : '#FEF3C7', border:`1px solid ${bloqueadaPorFuturo ? 'var(--border-subtle)' : permiso!.estado==='APROBADO' ? '#86EFAC' : '#FDE68A'}`, borderRadius:8, padding:8, marginBottom:8, color: bloqueadaPorFuturo ? 'var(--text-secondary)' : permiso!.estado==='APROBADO' ? '#166534' : '#92400E', fontSize:12, fontWeight:600 }}>
+          {bloqueadaPorFuturo ? `⛔ Día futuro (${dia.fecha}). Solo se puede editar desde hoy (${hoyStrLocal}) hacia atrás.` : `⛔ Día con permiso ${permiso!.tipo} ${permiso!.horas}h — ${permiso!.estado}. No se pueden mover las barras de horas.`}
+        </div>
+      )}
+      {!esEdicion && !bloqueada && <p style={{ fontSize:12, color:'var(--text-secondary)', marginTop:-8, marginBottom:8 }}>No hay registro este día. Ajusta el rango y agrega las horas trabajadas (quedará como <em>Jornada agregada</em>).</p>}
+      <div style={{ opacity: bloqueada ? 0.45 : 1, pointerEvents: bloqueada ? 'none' : 'auto' }}>
+        <DraggableHoursBar inicioMin={inicioMin} finMin={finMin} onChange={(i,f)=>{setInicioMin(i); setFinMin(f);}} />
+      </div>
+      <label style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, fontSize:13, color:'var(--text-secondary)', opacity: bloqueada ? 0.5 : 1, cursor: bloqueada ? 'not-allowed' : 'pointer' }}>
+        <input type="checkbox" checked={descuentaAlmuerzo} onChange={e=>setDescuentaAlmuerzo(e.target.checked)} disabled={!!bloqueada} />
+        hora almuerzo (resta 1h) — activo por defecto
+        <span style={{ fontSize:11, color: descuentaAlmuerzo ? 'var(--text-tertiary)' : 'var(--accent-primary)', fontWeight:600 }}>{descuentaAlmuerzo ? '· -1h' : '· +1h si desactivas'}</span>
+      </label>
+      <p style={{ fontSize:11, color:'var(--text-tertiary)', marginTop:4 }}>No cruza medianoche en esta vista. {esEdicion ? 'Guardar quedará como Jornada modificada.' : 'Se creará como Jornada agregada.'} {descuentaAlmuerzo ? 'Con almuerzo se resta 1h.' : 'Sin almuerzo se suma 1h.'}</p>
       <input placeholder="Descripción de proyectos (obligatorio)" value={descripcion} onChange={e=>setDescripcion(e.target.value)} style={{ width:'100%', marginTop:10, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:14 }} />
       <textarea placeholder="Motivo (obligatorio, auditado) — por qué agregas/edites este día" value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{ width:'100%', marginTop:8, padding:8, borderRadius:8, border:'1px solid var(--border-subtle)', background:'var(--bg-base)', color:'var(--text-primary)', fontSize:16, resize:'vertical', minHeight:60, maxHeight:180, overflow:'auto' }} />
       {error && <p style={{ color:'var(--accent-danger)', fontSize:13 }}>{error}</p>}
       <div style={{ display:'flex', gap:8, marginTop:12, justifyContent:'flex-end', flexWrap:'wrap' }}>
         <button onClick={onClose} style={btnSec}>Cancelar</button>
-        <button onClick={guardar} disabled={guardando} style={{...btnPri, opacity: guardando?0.6:1, width: 'auto' }}>{guardando ? "Guardando..." : esEdicion ? "Guardar corrección" : "Agregar horas"}</button>
+        <button onClick={guardar} disabled={guardando || bloqueada} title={bloqueada ? motivoBloqueo! : undefined} style={{...btnPri, opacity: (guardando || bloqueada)?0.6:1, width: 'auto', cursor: bloqueada ? 'not-allowed' : 'pointer' }}>{guardando ? "Guardando..." : esEdicion ? "Guardar corrección" : "Agregar horas"}</button>
       </div>
     </div>
   );
