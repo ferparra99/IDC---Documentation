@@ -65,4 +65,18 @@ export class PermisoRepository {
     );
     return rows.map(aProps);
   }
+
+  async listarPendientes(): Promise<PermisoProps[]> {
+    const { rows } = await this.pool.query<FilaPermiso>(
+      `SELECT * FROM permisos WHERE estado = 'ENVIADO' ORDER BY fecha_solicitud DESC`
+    );
+    return rows.map(aProps);
+  }
+
+  async listarTodos(): Promise<PermisoProps[]> {
+    const { rows } = await this.pool.query<FilaPermiso>(
+      `SELECT * FROM permisos ORDER BY fecha_solicitud DESC`
+    );
+    return rows.map(aProps);
+  }
 }

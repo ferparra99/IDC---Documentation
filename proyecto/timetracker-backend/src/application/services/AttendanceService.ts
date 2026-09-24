@@ -1,6 +1,7 @@
 import { RegistroJornadaRepository } from "../../infrastructure/repositories/RegistroJornadaRepository";
 import { ConfiguracionRepository } from "../../infrastructure/repositories/ConfiguracionRepository";
 import { AuditLogRepository } from "../../infrastructure/repositories/AuditLogRepository";
+import { PermisoRepository } from "../../infrastructure/repositories/PermisoRepository";
 import { RegistroJornada } from "../../domain/entities/RegistroJornada";
 import { nuevoRegistroJornada, RegistroJornadaProps } from "../../domain/entities/RegistroJornadaTypes";
 import {
@@ -23,7 +24,8 @@ export class AttendanceService {
   constructor(
     private readonly registros: RegistroJornadaRepository,
     private readonly configuracion: ConfiguracionRepository,
-    private readonly auditoria: AuditLogRepository
+    private readonly auditoria: AuditLogRepository,
+    private readonly permisos?: PermisoRepository
   ) {}
 
   async obtenerEstadoHoy(usuarioId: string): Promise<EstadoHoyDTO> {
@@ -116,6 +118,18 @@ export class AttendanceService {
     }
     if (existente.usuarioId !== solicitanteId && !solicitanteEsAdmin) {
       throw new NoAutorizadoError("No puedes editar el registro de otro usuario.");
+    }
+
+    // Bloqueo si el día es futuro (solo desde hoy hacia atrás)
+    const hoy = fechaBogotaHoy();
+    if (existente.fecha > hoy) {
+      throw new ValidacionError(`No se pueden modificar horas de días futuros (${existente.fecha} > hoy ${hoy}). Solo desde hoy hacia atrás.`);
+    }
+    // Bloqueo si el día tiene permiso ENVIADO o APROBADO
+    if (this.permisos) {
+      const permisosDia = await this.permisos.listarPorUsuario(existente.usuarioId);
+      const bloqueado = permisosDia.some(p => p.fechaSolicitud === existente.fecha && (p.estado === "ENVIADO" || p.estado === "APROBADO"));
+      if (bloqueado) throw new ValidacionError(`No se pueden modificar horas el ${existente.fecha}: existe permiso en estado ENVIADO/APROBADO.`);
     }
 
     const valorAnterior = { ...existente };

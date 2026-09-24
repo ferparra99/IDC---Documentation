@@ -45,15 +45,16 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string): Promise<LoginResultado> {
+    const emailHash = crypto.createHash("sha256").update(email.toLowerCase()).digest("hex").slice(0, 12);
     const usuario = await this.usuarios.buscarPorEmail(email);
     if (!usuario) {
-      logger.warn({ email }, "Intento de login con email no existente");
+      logger.warn({ emailHash }, "Intento de login con email no existente");
       throw new CredencialesInvalidasError("Email o contraseña incorrectos.");
     }
 
     const passwordValido = await bcrypt.compare(password, usuario.passwordHash);
     if (!passwordValido) {
-      logger.warn({ email, usuarioId: usuario.id }, "Intento de login con contraseña incorrecta");
+      logger.warn({ emailHash, usuarioId: usuario.id }, "Intento de login con contraseña incorrecta");
       throw new CredencialesInvalidasError("Email o contraseña incorrectos.");
     }
 

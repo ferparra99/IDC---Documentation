@@ -116,4 +116,33 @@ public class LeaveController {
         var p = service.enviar(toUUID(userId), id);
         return ResponseEntity.ok(Map.of("data", permisoToMap(p)));
     }
+
+    // --- Admin: gestión de solicitudes ---
+    @GetMapping("/pendientes")
+    public ResponseEntity<Map<String, Object>> pendientes() {
+        if (!isAdmin()) throw new com.idc.timetracker.common.exception.NoAutorizadoException("Se requiere rol administrador.");
+        var lista = service.listarPendientes().stream().map(this::permisoToMap).toList();
+        return ResponseEntity.ok(Map.of("data", lista));
+    }
+
+    @GetMapping("/admin")
+    public ResponseEntity<Map<String, Object>> listarTodosAdmin() {
+        if (!isAdmin()) throw new com.idc.timetracker.common.exception.NoAutorizadoException("Se requiere rol administrador.");
+        var lista = service.listarTodos().stream().map(this::permisoToMap).toList();
+        return ResponseEntity.ok(Map.of("data", lista));
+    }
+
+    @PostMapping("/{id}/aprobar")
+    public ResponseEntity<Map<String, Object>> aprobar(@PathVariable UUID id) {
+        if (!isAdmin()) throw new com.idc.timetracker.common.exception.NoAutorizadoException("Se requiere rol administrador.");
+        var p = service.aprobar(id);
+        return ResponseEntity.ok(Map.of("data", permisoToMap(p)));
+    }
+
+    @PostMapping("/{id}/rechazar")
+    public ResponseEntity<Map<String, Object>> rechazar(@PathVariable UUID id) {
+        if (!isAdmin()) throw new com.idc.timetracker.common.exception.NoAutorizadoException("Se requiere rol administrador.");
+        var p = service.rechazar(id);
+        return ResponseEntity.ok(Map.of("data", permisoToMap(p)));
+    }
 }

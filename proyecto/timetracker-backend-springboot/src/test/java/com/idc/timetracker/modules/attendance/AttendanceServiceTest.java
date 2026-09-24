@@ -7,6 +7,7 @@ import com.idc.timetracker.common.exception.TransicionInvalidaException;
 import com.idc.timetracker.common.util.TiempoUtil;
 import com.idc.timetracker.modules.attendance.estado.*;
 import com.idc.timetracker.modules.holiday.FestivoRepository;
+import com.idc.timetracker.modules.leave.PermisoRepository;
 import com.idc.timetracker.modules.user.RolUsuario;
 import com.idc.timetracker.modules.user.Usuario;
 import com.idc.timetracker.modules.user.UsuarioRepository;
@@ -34,12 +35,15 @@ class AttendanceServiceTest {
     private CalculadoraHorasService calculadora;
     private AttendanceService service;
     private EstadoJornadaResolver resolver;
+    private PermisoRepository permisoRepo;
 
     @BeforeEach
     void setup() {
         registroRepo = mock(RegistroJornadaRepository.class);
         usuarioRepo = mock(UsuarioRepository.class);
         festivoRepo = mock(FestivoRepository.class);
+        permisoRepo = mock(PermisoRepository.class);
+        when(permisoRepo.findByUsuarioIdAndFechaSolicitud(any(), any())).thenReturn(List.of());
         AppProperties props = new AppProperties();
         props.setZonaHoraria("America/Bogota");
         tiempoUtil = new TiempoUtil(props);
@@ -52,7 +56,7 @@ class AttendanceServiceTest {
                 new EnPermisoEstado()
         ));
         var auditService = mock(com.idc.timetracker.common.audit.AuditService.class);
-        service = new AttendanceService(registroRepo, usuarioRepo, calculadora, tiempoUtil, festivoRepo, auditService, resolver);
+        service = new AttendanceService(registroRepo, usuarioRepo, calculadora, tiempoUtil, festivoRepo, permisoRepo, auditService, resolver);
     }
 
     @Test

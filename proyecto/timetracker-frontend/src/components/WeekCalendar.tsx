@@ -1,7 +1,16 @@
 import { useEffect, useRef } from "react";
-import { DiaCalendarioDTO, RegistroDTO } from "../api/types";
+import { DiaCalendarioDTO, RegistroDTO, PermisoDTO } from "../api/types";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useTheme } from "../context/ThemeContext";
+import { formatearEstado } from "../utils/estado";
+
+function badgePermisoWeek(permiso: PermisoDTO | undefined, isDark: boolean): { bg: string; color: string; label: string } | null {
+  if (!permiso) return null;
+  if (permiso.estado === "APROBADO") return { bg: isDark ? "#14532D" : "#DCFCE7", color: isDark ? "#86EFAC" : "#166534", label: `Permiso ${permiso.horas}h ✓` };
+  if (permiso.estado === "ENVIADO") return { bg: isDark ? "#78350F" : "#FEF3C7", color: isDark ? "#FDE68A" : "#92400E", label: `Permiso ${permiso.horas}h pendiente` };
+  if (permiso.estado === "RECHAZADO") return { bg: isDark ? "#7F1D1D" : "#FEE2E2", color: isDark ? "#FCA5A5" : "#991B1B", label: `Rechazado` };
+  return { bg: isDark ? "#1F2A3A" : "#F1F5F9", color: "var(--text-secondary)", label: `Borrador ${permiso.horas}h` };
+}
 
 const HORAS = Array.from({ length: 24 }, (_, i) => i);
 const DIAS_LABEL = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
@@ -9,12 +18,14 @@ const DIAS_LABEL = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 export function WeekCalendar({
   weekDias,
   registrosMap,
+  permisosMap,
   selectedFecha,
   onSelectDia,
   todayStr,
 }: {
   weekDias: DiaCalendarioDTO[];
   registrosMap: Record<string, RegistroDTO>;
+  permisosMap?: Record<string, PermisoDTO>;
   selectedFecha: string | null;
   onSelectDia: (d: DiaCalendarioDTO) => void;
   todayStr: string;
@@ -45,17 +56,20 @@ export function WeekCalendar({
           const isToday=d.fecha===todayStr;
           const isFestivo=d.esFestivo;
           const isWeekend=d.esFinDeSemana;
+          const permiso = permisosMap?.[d.fecha];
+          const pb = badgePermisoWeek(permiso, isDark);
           const headerBg=isFestivo?(isDark?'#4A1F1A':'#FED7D7'):isWeekend?(isDark?'#1E2A44':'#dbeafe'):isToday?(isDark?'#1F2535':'#EEF0FF'):'var(--bg-surface)';
           const label=DIAS_LABEL[idx]??'';
           return (
             <div key={d.fecha} onClick={()=>onSelectDia(d)} style={{ padding:'8px 4px', textAlign:'center', cursor:'pointer', background: headerBg, borderLeft:'1px solid var(--border-subtle)' }}>
               <div style={{ fontSize:13 }}>
                 <span style={{ fontWeight:400, color:'var(--text-secondary)' }}>{label} </span>
-                <span style={{ fontWeight:700, display:'inline-block', background: isToday?'var(--accent-primary)':isFestivo?'#C0392B':'transparent', color: isToday||isFestivo?'#fff':'var(--text-primary)', padding: isToday||isFestivo?'2px 8px':0, borderRadius:6, fontFamily:'Fraunces, serif' }}>{d.fecha.slice(8,10)}</span>
+                <span style={{ fontWeight:700, display:'inline-block', background: isToday?'var(--accent-primary)':isFestivo?'#C0392B':'transparent', color: isToday||isFestivo?'#fff':'var(--text-primary)', padding: isToday||isFestivo?'2px 8px':0, borderRadius:6, fontFamily:'Outfit, sans-serif' }}>{d.fecha.slice(8,10)}</span>
               </div>
               <div style={{ fontSize:10, color: isFestivo?(isDark?'#FCA5A5':'#9B1C1C'):'var(--text-tertiary)', marginTop:2, minHeight:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {d.nombreFestivo ?? (isWeekend && !isFestivo ? 'Sáb/Dom':'')} {d.horasTrabajadas?`· ${d.horasTrabajadas}h`:''}
               </div>
+              {pb && <div style={{ fontSize:8, fontWeight:700, padding:'1px 6px', borderRadius:9999, background: pb.bg, color: pb.color, display:'inline-block', marginTop:2, maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pb.label}</div>}
             </div>
           );
         })}
@@ -68,7 +82,7 @@ export function WeekCalendar({
             const isFestivo=d.esFestivo; const isWeekend=d.esFinDeSemana;
             const border=active?'var(--accent-primary)':isFestivo?'#C0392B':isWeekend?(isDark?'#3A4A6A':'#93c5fd'):'var(--border-subtle)';
             const bg=active?'var(--accent-primary)':isFestivo?(isDark?'#4A1F1A':'#FED7D7'):isWeekend?(isDark?'#1E2A44':'#dbeafe'):'var(--bg-surface)';
-            return <button key={d.fecha} onClick={()=>onSelectDia(d)} style={{ flexShrink:0, minWidth:56, padding:'6px', borderRadius:10, border:`2px solid ${border}`, background:bg, color: active?'#fff': isFestivo?(isDark?'#FCA5A5':'#9B1C1C'):'var(--text-primary)', textAlign:'center', cursor:'pointer' }}><div style={{ fontSize:9, color: active?'rgba(255,255,255,0.9)':'var(--text-secondary)', textTransform:'uppercase' }}>{DIAS_LABEL[i]}</div><div style={{ fontSize:15, fontWeight:700, fontFamily:'Fraunces, serif' }}>{d.fecha.slice(8,10)}</div>{isFestivo && <div style={{ fontSize:8, fontWeight:700 }}>FER</div>}</button>;
+            return <button key={d.fecha} onClick={()=>onSelectDia(d)} style={{ flexShrink:0, minWidth:56, padding:'6px', borderRadius:10, border:`2px solid ${border}`, background:bg, color: active?'#fff': isFestivo?(isDark?'#FCA5A5':'#9B1C1C'):'var(--text-primary)', textAlign:'center', cursor:'pointer' }}><div style={{ fontSize:9, color: active?'rgba(255,255,255,0.9)':'var(--text-secondary)', textTransform:'uppercase' }}>{DIAS_LABEL[i]}</div><div style={{ fontSize:15, fontWeight:700, fontFamily:'Outfit, sans-serif' }}>{d.fecha.slice(8,10)}</div>{isFestivo && <div style={{ fontSize:8, fontWeight:700 }}>FER</div>}</button>;
           })}
         </div>
       )}
@@ -95,9 +109,11 @@ export function WeekCalendar({
                 // sutil wash like image: lavanda pálida + left accent only for worked cells
                 const workedBg = isDark ? 'rgba(232,224,248,0.18)' : '#F3EFFF'; // sutil lavanda
                 const washBg = inWorked ? workedBg : undefined;
-                const festivoBg = !inWorked && isFestivo ? (isDark?'rgba(192,57,43,0.14)':'rgba(254,215,215,0.55)') : undefined;
-                const weekendBg = !inWorked && !isFestivo && isWeekend ? (isDark?'rgba(58,74,106,0.12)':'rgba(219,234,254,0.45)') : undefined;
-                const bg = washBg ?? festivoBg ?? weekendBg ?? (isToday ? (isDark?'#1F2535':'#F5F6FF') : 'transparent');
+                const permisoWk = permisosMap?.[d.fecha];
+                const permisoBg = !inWorked && permisoWk ? (permisoWk.estado==='APROBADO' ? (isDark?'rgba(20,83,45,0.22)':'rgba(220,252,231,0.75)') : permisoWk.estado==='ENVIADO' ? (isDark?'rgba(120,53,15,0.20)':'rgba(254,243,199,0.75)') : permisoWk.estado==='RECHAZADO' ? (isDark?'rgba(127,29,29,0.18)':'rgba(254,226,226,0.60)') : (isDark?'rgba(31,42,58,0.12)':'rgba(241,245,249,0.60)')) : undefined;
+                const festivoBg = !inWorked && !permisoBg && isFestivo ? (isDark?'rgba(192,57,43,0.14)':'rgba(254,215,215,0.55)') : undefined;
+                const weekendBg = !inWorked && !permisoBg && !isFestivo && isWeekend ? (isDark?'rgba(58,74,106,0.12)':'rgba(219,234,254,0.45)') : undefined;
+                const bg = washBg ?? permisoBg ?? festivoBg ?? weekendBg ?? (isToday ? (isDark?'#1F2535':'#F5F6FF') : 'transparent');
                 const leftBorder = inWorked ? '3px solid #E8AFAF' : undefined;
                 const radius = inWorked ? (isFirst && isLast ? '8px' : isFirst ? '8px 8px 0 0' : isLast ? '0 0 8px 8px' : '0') : undefined;
                 return (
@@ -110,8 +126,8 @@ export function WeekCalendar({
                   }}>
                     {isFirst && (
                       <div style={{ position:'absolute', top:6, left:8, right:8, height:`${(finH - inicioH)*44 - 12}px`, display:'flex', flexDirection:'column', justifyContent:'flex-start', gap:2, pointerEvents:'none', zIndex:2, overflow:'visible' }}>
-                        <div style={{ fontSize:12, fontWeight:600, color: isDark?'#E9DDF8':'#4A3A6A', lineHeight:1.3, whiteSpace:'normal', wordBreak:'break-word', overflow:'visible' }}>{d.horasTrabajadas}h{d.horasTrabajadas>=2?' · bloque':''}{d.nombreFestivo?` · ${d.nombreFestivo}`:''}</div>
-                        <div style={{ fontSize:11, color: isDark?'#C9B8E8':'#8A7AA8', whiteSpace:'nowrap' }}>{String(inicioH).padStart(2,'0')}:00 — {String(finH).padStart(2,'0')}:00</div>
+                        <div style={{ fontSize:11, fontWeight:700, color: isDark?'#E9DDF8':'#4A3A6A', lineHeight:1.2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{formatearEstado(d.estado as any, reg as any)} · {d.horasTrabajadas}h</div>
+                        <div style={{ fontSize:10, color: isDark?'#C9B8E8':'#8A7AA8', whiteSpace:'nowrap' }}>{String(inicioH).padStart(2,'0')}:00 — {String(finH).padStart(2,'0')}:00</div>
                       </div>
                     )}
                     {isToday && h===now.getHours() && (

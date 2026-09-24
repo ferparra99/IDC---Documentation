@@ -5,6 +5,8 @@ import com.idc.timetracker.common.exception.*;
 import com.idc.timetracker.common.util.TiempoUtil;
 import com.idc.timetracker.modules.attendance.estado.EstadoJornadaResolver;
 import com.idc.timetracker.modules.holiday.FestivoRepository;
+import com.idc.timetracker.modules.leave.EstadoPermiso;
+import com.idc.timetracker.modules.leave.PermisoRepository;
 import com.idc.timetracker.modules.user.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class AttendanceService {
     private final CalculadoraHorasService calculadora;
     private final TiempoUtil tiempoUtil;
     private final FestivoRepository festivoRepository;
+    private final PermisoRepository permisoRepository;
     private final AuditService auditService;
     private final EstadoJornadaResolver estadoResolver;
 
@@ -83,10 +86,16 @@ public class AttendanceService {
 
     @Transactional
     public RegistroJornada finalizarJornada(UUID userId, String descripcion) {
+        return finalizarJornada(userId, descripcion, true);
+    }
+
+    @Transactional
+    public RegistroJornada finalizarJornada(UUID userId, String descripcion, Boolean descuentaAlmuerzo) {
         if (descripcion == null || descripcion.isBlank()) {
             throw new ValidacionException("La descripción de proyectos es obligatoria para finalizar la jornada");
         }
         String descripcionLimpia = descripcion.trim();
+        boolean descuenta = descuentaAlmuerzo == null || descuentaAlmuerzo;
 
         // busca activas FIFO
         List<RegistroJornada> activas = registroRepo.findByUsuarioIdAndEstadoOrderByFechaAsc(userId, EstadoJornada.JORNADA_ACTIVA);
@@ -110,10 +119,12 @@ public class AttendanceService {
         boolean esDominicalOFestivo = esDominicalOFestivo(fechaJornada);
 
         DesgloseHoras desglose = calculadora.calcular(registro.getHoraInicio(), horaFin, esDominicalOFestivo);
+        if (descuenta) desglose = aplicarDescuentoAlmuerzo(desglose);
 
         registro.setHoraFin(horaFin);
         registro.setDescripcionProyectos(descripcionLimpia);
         registro.setEstado(EstadoJornada.JORNADA_FINALIZADA);
+        registro.setDescuentaAlmuerzo(descuenta);
         aplicarDesglose(registro, desglose);
 
         return registroRepo.save(registro);
@@ -121,6 +132,11 @@ public class AttendanceService {
 
     @Transactional
     public RegistroJornada editarManual(UUID userId, UUID registroId, Instant nuevoInicio, Instant nuevoFin, String motivo) {
+        return editarManual(userId, registroId, nuevoInicio, nuevoFin, motivo, true);
+    }
+
+    @Transactional
+    public RegistroJornada editarManual(UUID userId, UUID registroId, Instant nuevoInicio, Instant nuevoFin, String motivo, Boolean descuentaAlmuerzo) {
         if (motivo == null || motivo.isBlank()) {
             throw new ValidacionException("El motivo de edición manual es obligatorio");
         }
@@ -133,6 +149,18 @@ public class AttendanceService {
 
         RegistroJornada registro = registroRepo.findById(registroId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Registro no encontrado: " + registroId));
+
+        // Bloqueo si el día es futuro (solo se puede editar desde hoy hacia atrás)
+        LocalDate hoy = tiempoUtil.fechaBogotaHoy();
+        if (registro.getFecha().isAfter(hoy)) {
+            throw new ValidacionException("No se pueden modificar horas de días futuros (" + registro.getFecha() + " > hoy " + hoy + "). Solo desde hoy hacia atrás.");
+        }
+        // Bloqueo si el día tiene permiso ENVIADO o APROBADO
+        if (permisoRepository != null) {
+            var permisosDia = permisoRepository.findByUsuarioIdAndFechaSolicitud(registro.getUsuario().getId(), registro.getFecha());
+            boolean bloqueado = permisosDia.stream().anyMatch(p -> p.getEstado() == EstadoPermiso.ENVIADO || p.getEstado() == EstadoPermiso.APROBADO);
+            if (bloqueado) throw new ValidacionException("No se pueden modificar horas el " + registro.getFecha() + ": existe permiso en estado ENVIADO/APROBADO.");
+        }
 
         // solo propietario o admin podría editar — validación básica de pertenencia
         if (!registro.getUsuario().getId().equals(userId)) {
@@ -161,11 +189,14 @@ public class AttendanceService {
         // snapshot para auditoría
         Object valorAnterior = snapshot(registro);
 
+        boolean descuenta2 = descuentaAlmuerzo == null || descuentaAlmuerzo;
         boolean esDominicalOFestivo = esDominicalOFestivo(registro.getFecha());
         DesgloseHoras desglose = calculadora.calcular(nuevoInicio, nuevoFin, esDominicalOFestivo);
+        if (descuenta2) desglose = aplicarDescuentoAlmuerzo(desglose);
 
         registro.setHoraInicio(nuevoInicio);
         registro.setHoraFin(nuevoFin);
+        registro.setDescuentaAlmuerzo(descuenta2);
         aplicarDesglose(registro, desglose);
         registro.setEditadoManualmente(true);
 
@@ -178,6 +209,56 @@ public class AttendanceService {
             // audit no debe romper la transacción principal si es stub
         }
 
+        return guardado;
+    }
+
+    @Transactional
+    public RegistroJornada crearManual(UUID userId, LocalDate fecha, Instant horaInicio, Instant horaFin, String motivo, String descripcion) {
+        return crearManual(userId, fecha, horaInicio, horaFin, motivo, descripcion, true);
+    }
+
+    @Transactional
+    public RegistroJornada crearManual(UUID userId, LocalDate fecha, Instant horaInicio, Instant horaFin, String motivo, String descripcion, Boolean descuentaAlmuerzo) {
+        if (motivo == null || motivo.isBlank()) throw new ValidacionException("El motivo es obligatorio para agregar horas.");
+        if (descripcion == null || descripcion.isBlank()) throw new ValidacionException("La descripción de proyectos es obligatoria.");
+        if (horaInicio == null || horaFin == null) throw new ValidacionException("horaInicio y horaFin son obligatorios.");
+        if (!horaFin.isAfter(horaInicio)) throw new ValidacionException("horaFin debe ser posterior a horaInicio.");
+        usuarioRepo.findById(userId).orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado: " + userId));
+        // Bloqueo si el día es futuro
+        LocalDate hoy = tiempoUtil.fechaBogotaHoy();
+        if (fecha.isAfter(hoy)) {
+            throw new ValidacionException("No se pueden agregar horas de días futuros (" + fecha + " > hoy " + hoy + "). Solo desde hoy hacia atrás.");
+        }
+        // Bloqueo si el día tiene permiso ENVIADO o APROBADO
+        if (permisoRepository != null) {
+            var permisosDia = permisoRepository.findByUsuarioIdAndFechaSolicitud(userId, fecha);
+            boolean bloqueado = permisosDia.stream().anyMatch(p -> p.getEstado() == EstadoPermiso.ENVIADO || p.getEstado() == EstadoPermiso.APROBADO);
+            if (bloqueado) throw new ValidacionException("No se pueden agregar horas el " + fecha + ": existe permiso en estado ENVIADO/APROBADO.");
+        }
+        if (registroRepo.findByUsuarioIdAndFecha(userId, fecha).isPresent()) {
+            throw new JornadaYaActivaException("Ya existe una jornada para el día " + fecha);
+        }
+        boolean descuenta = descuentaAlmuerzo == null || descuentaAlmuerzo;
+        boolean esDominicalOFestivo = esDominicalOFestivo(fecha);
+        DesgloseHoras desglose = calculadora.calcular(horaInicio, horaFin, esDominicalOFestivo);
+        if (descuenta) desglose = aplicarDescuentoAlmuerzo(desglose);
+        var usuario = usuarioRepo.getReferenceById(userId);
+        RegistroJornada registro = RegistroJornada.builder()
+                .usuario(usuario)
+                .fecha(fecha)
+                .horaInicio(horaInicio)
+                .horaFin(horaFin)
+                .estado(EstadoJornada.JORNADA_FINALIZADA)
+                .descripcionProyectos(descripcion.trim())
+                .origen("manual")
+                .descuentaAlmuerzo(descuenta)
+                .editadoManualmente(false)
+                .build();
+        aplicarDesglose(registro, desglose);
+        RegistroJornada guardado = registroRepo.save(registro);
+        try {
+            auditService.audit("registro_jornada", guardado.getId(), userId, null, snapshot(guardado), motivo.trim());
+        } catch (Exception ignored) {}
         return guardado;
     }
 
@@ -259,6 +340,29 @@ public class AttendanceService {
         }
     }
 
+    private DesgloseHoras aplicarDescuentoAlmuerzo(DesgloseHoras d) {
+        double restante = 1.0;
+        double ord = d.horasOrdinarias();
+        double extraD = d.horasExtraDiurnas();
+        double extraN = d.horasExtraNocturnas();
+        double recargo = d.horasRecargoNocturno();
+        double dom = d.horasDominicalFestivo();
+        // descontar 1h priorizando ordinarias
+        if (ord >= restante) return new DesgloseHoras(redondear(ord - restante), extraD, extraN, recargo, dom);
+        restante -= ord; ord = 0;
+        if (extraD >= restante) return new DesgloseHoras(0, redondear(extraD - restante), extraN, recargo, dom);
+        restante -= extraD; extraD = 0;
+        if (recargo >= restante) return new DesgloseHoras(0, 0, extraN, redondear(recargo - restante), dom);
+        restante -= recargo; recargo = 0;
+        if (extraN >= restante) return new DesgloseHoras(0, 0, redondear(extraN - restante), 0, dom);
+        restante -= extraN; extraN = 0;
+        if (dom >= restante) return new DesgloseHoras(0, 0, 0, 0, redondear(dom - restante));
+        // si total <1h, todo queda 0
+        return new DesgloseHoras(0, 0, 0, 0, 0);
+    }
+
+    private double redondear(double v) { return Math.round(v * 100.0) / 100.0; }
+
     private void aplicarDesglose(RegistroJornada r, DesgloseHoras d) {
         r.setHorasOrdinarias(toBd(d.horasOrdinarias()));
         r.setHorasExtraDiurnas(toBd(d.horasExtraDiurnas()));
@@ -294,6 +398,8 @@ public class AttendanceService {
         m.put("horasRecargoNocturno", r.getHorasRecargoNocturno());
         m.put("horasDominicalFestivo", r.getHorasDominicalFestivo());
         m.put("editadoManualmente", r.isEditadoManualmente());
+        m.put("origen", r.getOrigen());
+        m.put("descuentaAlmuerzo", r.getDescuentaAlmuerzo());
         m.put("descripcionProyectos", r.getDescripcionProyectos());
         return m;
     }

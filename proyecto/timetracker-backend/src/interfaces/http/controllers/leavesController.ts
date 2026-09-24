@@ -50,3 +50,39 @@ export async function listar(req: Request, res: Response): Promise<void> {
   const permisos = await container.permisoService.listar(req.usuario!.sub, desde, hasta);
   res.status(200).json({ data: permisos });
 }
+
+export async function pendientes(req: Request, res: Response): Promise<void> {
+  if (req.usuario!.rol !== "administrador") {
+    const err: any = new Error("Se requiere rol administrador.");
+    err.code = "NO_AUTORIZADO"; err.status = 403; throw err;
+  }
+  const permisos = await container.permisoService.listarPendientes();
+  res.status(200).json({ data: permisos });
+}
+
+export async function listarTodosAdmin(req: Request, res: Response): Promise<void> {
+  if (req.usuario!.rol !== "administrador") {
+    const err: any = new Error("Se requiere rol administrador.");
+    err.code = "NO_AUTORIZADO"; err.status = 403; throw err;
+  }
+  const permisos = await container.permisoService.listarTodosAdmin();
+  res.status(200).json({ data: permisos });
+}
+
+export async function aprobar(req: Request, res: Response): Promise<void> {
+  if (req.usuario!.rol !== "administrador") {
+    const err: any = new Error("Se requiere rol administrador.");
+    err.code = "NO_AUTORIZADO"; err.status = 403; throw err;
+  }
+  const permiso = await container.permisoService.aprobar(req.params.id);
+  res.status(200).json({ data: permiso });
+}
+
+export async function rechazar(req: Request, res: Response): Promise<void> {
+  if (req.usuario!.rol !== "administrador") {
+    const err: any = new Error("Se requiere rol administrador.");
+    err.code = "NO_AUTORIZADO"; err.status = 403; throw err;
+  }
+  const permiso = await container.permisoService.rechazar(req.params.id);
+  res.status(200).json({ data: permiso });
+}

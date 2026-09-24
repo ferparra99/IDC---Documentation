@@ -53,7 +53,7 @@ public class PermisoService {
         Permiso p = permisoRepo.findById(permisoId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Permiso no encontrado"));
         if (!p.getUsuario().getId().equals(usuarioId)) throw new NoAutorizadoException("No autorizado");
-        if (p.getEstado() == EstadoPermiso.ENVIADO) throw new ValidacionException("No se puede editar un permiso ya enviado");
+        if (p.getEstado() != EstadoPermiso.BORRADOR) throw new ValidacionException("No se puede editar un permiso ya enviado/aprobado/rechazado");
         if (horas != null) validarHoras(horas);
         BigDecimal horasEff = horas != null ? horas : p.getHoras();
         TipoPermiso tipoEff = tipo != null ? tipo : p.getTipo();
@@ -100,11 +100,39 @@ public class PermisoService {
     }
 
     @Transactional(readOnly = true)
+    public List<Permiso> listarPendientes() {
+        return permisoRepo.findByEstadoOrderByFechaSolicitudDesc(EstadoPermiso.ENVIADO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Permiso> listarTodos() {
+        return permisoRepo.findAllByOrderByFechaSolicitudDesc();
+    }
+
+    @Transactional(readOnly = true)
     public Permiso obtener(UUID usuarioId, UUID permisoId) {
         Permiso p = permisoRepo.findById(permisoId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Permiso no encontrado"));
         if (!p.getUsuario().getId().equals(usuarioId)) throw new NoAutorizadoException("No autorizado");
         return p;
+    }
+
+    @Transactional
+    public Permiso aprobar(UUID permisoId) {
+        Permiso p = permisoRepo.findById(permisoId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Permiso no encontrado"));
+        if (p.getEstado() != EstadoPermiso.ENVIADO) throw new ValidacionException("Solo se pueden aprobar permisos en estado ENVIADO");
+        p.setEstado(EstadoPermiso.APROBADO);
+        return permisoRepo.save(p);
+    }
+
+    @Transactional
+    public Permiso rechazar(UUID permisoId) {
+        Permiso p = permisoRepo.findById(permisoId)
+                .orElseThrow(() -> new RecursoNoEncontradoException("Permiso no encontrado"));
+        if (p.getEstado() != EstadoPermiso.ENVIADO) throw new ValidacionException("Solo se pueden rechazar permisos en estado ENVIADO");
+        p.setEstado(EstadoPermiso.RECHAZADO);
+        return permisoRepo.save(p);
     }
 
     private void validarHoras(BigDecimal horas) {

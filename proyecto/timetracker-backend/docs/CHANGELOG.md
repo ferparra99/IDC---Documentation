@@ -132,3 +132,22 @@
   - `AttendanceServiceTest` 4→10 tests, `mvn test` 55 OK, `mvn package` BUILD SUCCESS.
 - **Motivo:** Hallazgo AI Council — `EstadoJornada` enum plano con `if (estado == ...)` en `AttendanceService` violaba State obligatorio (`refactor-state-pattern-plan.md`).
 - **Referencia:** `refactor-state-pattern-plan.md`
+
+## [2026-09-11] - Rediseño frontend responsive + semana 24h
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - **Theming:** `theme.css` aclarado (oscuro `#1C1C22/#24242F`), toggle claro/oscuro global en `App.tsx` header (todas las páginas), `ThemeContext` con persistencia y `prefers-color-scheme`.
+  - **Shell:** `Sidebar`/`BottomNav`/`TopToolbar` responsive mobile-first (bottom nav 56px + safe-area, rail 64px tablet, sidebar 230px desktop).
+  - **Calendario:** vista semanal Lun-Dom (default) con navegación por semana + mensual como toggle; `WeekCalendar` 24h (00-23) con scroll oculto `68vh` y auto-scroll a 08:00; `MonthCalendar` con celdas amplias y barras incrementales.
+  - **Detalle:** `DetailPanel` como bottom sheet/drawer/columna derecha (desktop sticky 360px); `SummaryPanel` sin card "Mínimo", con datos semanales vs mensuales según vista.
+  - **Sutileza semana (basado en imagen ref):** cada hora trabajada se resalta como wash lavanda `#F3EFFF` (dark `rgba(232,224,248,0.18)`) con borde izquierdo 3px `#E8AFAF`, ocupando 1 celda por hora; dos casillas contiguas (ej. 10-11) forman bloque continuo partido por la línea de hora, info solo en primera casilla (`horas + rango`).
+- **Validación:** `vite build` 52 modules OK, `tsc -b` sin errores.
+- **Referencia:** `frontend-ui-redesign-plan.md`
+
+## [2026-09-17] - Crear jornada por clic + etiquetas de estado
+- **Autor:** Muse Spark (junto con el usuario)
+- **Cambio:**
+  - **Backend (Spring Boot):** migración `V10__add_origen.sql` (`origen VARCHAR(20) DEFAULT 'fichaje'`), `RegistroJornada.origen` + `RegistroDTO.origen` + `AttendanceMapper`; nuevo `AttendanceService.crearManual(fecha,horaInicio,horaFin,motivo,descripcion)` (valida motivo/descripción, `UNIQUE(usuario,fecha)` 409, calcula horas, `estado=JORNADA_FINALIZADA, origen=manual`, audit con `valorAnterior=null`); nuevo `POST /attendance/manual` 201 en `AttendanceController`.
+  - **Frontend:** nuevo `utils/estado.ts` `formatearEstado(estado,registro)` → `Jornada sin iniciar | Jornada iniciada | Jornada finalizada | Jornada agregada (manual) | Jornada modificada (editado) | En permiso`; `MonthCalendar`/`WeekCalendar`/`DetailPanel`/`AttendancePage` usan la etiqueta (no `SIN_INICIAR` raw); `CalendarPage` `EditContent` modo dual crear (`POST /manual` → *Jornada agregada*) vs editar (`PUT :id` → *Jornada modificada*), con `DraggableHoursBar` + `descripcionProyectos` + `motivo` obligatorios por clic en cualquier día/hora.
+- **Validación:** `mvn test` 55 OK, `mvn package` BUILD SUCCESS, `vite build` 53 modules OK.
+- **Referencia:** Solicitud usuario 17-09

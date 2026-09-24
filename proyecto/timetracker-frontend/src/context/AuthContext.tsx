@@ -10,14 +10,17 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function rolDesdeToken(): string | null {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.rol ?? null;
+  } catch { return null; }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioPublico | null>(() => {
-    // Requisito: al "iniciar el aplicativo" (pestaña nueva / app recién abierta)
-    // debe verse el login, no la pantalla principal. Pero F5 dentro de la
-    // misma pestaña debe mantener la sesión.
-    // sessionStorage vive por pestaña y sobrevive a F5, pero se limpia al
-    // cerrar la pestaña/navegador o abrir una nueva pestaña -> lo usamos
-    // como marcador de "sesión de pestaña".
     try {
       const esInicioApp = !sessionStorage.getItem("appStarted");
       if (esInicioApp) {
@@ -28,11 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
     } catch {
-      // storage no disponible (SSR/tests) -> fallback sin auto-login
       return null;
     }
     const guardado = localStorage.getItem("usuario");
-    return guardado ? JSON.parse(guardado) : null;
+    if (!guardado) return null;
+    try {
+      const parsed: UsuarioPublico = JSON.parse(guardado);
+      // Mitigación rol spoofing: deriva rol del JWT (fuente de verdad), no solo de localStorage
+      const rolToken = rolDesdeToken() as UsuarioPublico["rol"] | null;
+      if (rolToken && parsed.rol !== rolToken) {
+        const corregido = { ...parsed, rol: rolToken };
+        localStorage.setItem("usuario", JSON.stringify(corregido));
+        return corregido;
+      }
+      return parsed;
+    } catch { return null; }
   });
 
   // Si api/client.ts no logra renovar la sesión (refresh token vencido/revocado),

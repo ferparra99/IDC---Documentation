@@ -58,6 +58,34 @@ export class PermisoService {
     return this.permisos.listarPorUsuario(usuarioId, desde, hasta);
   }
 
+  async listarPendientes(): Promise<PermisoProps[]> {
+    return this.permisos.listarPendientes();
+  }
+
+  async listarTodosAdmin(): Promise<PermisoProps[]> {
+    return this.permisos.listarTodos();
+  }
+
+  async aprobar(id: string): Promise<PermisoProps> {
+    const existente = await this.permisos.buscarPorId(id);
+    if (!existente) throw new NoEncontradoError("El permiso no existe.");
+    const entidad = Permiso.desdeProps(existente);
+    entidad.aprobar();
+    const guardado = await this.permisos.guardar(entidad.toProps());
+    logger.info({ permisoId: id }, "Permiso aprobado");
+    return guardado;
+  }
+
+  async rechazar(id: string): Promise<PermisoProps> {
+    const existente = await this.permisos.buscarPorId(id);
+    if (!existente) throw new NoEncontradoError("El permiso no existe.");
+    const entidad = Permiso.desdeProps(existente);
+    entidad.rechazar();
+    const guardado = await this.permisos.guardar(entidad.toProps());
+    logger.info({ permisoId: id }, "Permiso rechazado");
+    return guardado;
+  }
+
   private async obtenerPropio(id: string, usuarioId: string, esAdmin: boolean): Promise<PermisoProps> {
     const permiso = await this.permisos.buscarPorId(id);
     if (!permiso) throw new NoEncontradoError("El permiso no existe.");

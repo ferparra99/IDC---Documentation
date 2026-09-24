@@ -25,10 +25,7 @@ public class ReportService {
         List<RegistroJornada> jornadas;
         List<Viaje> viajes;
         if (adminView) {
-            jornadas = registroRepo.findAll().stream()
-                    .filter(r -> !r.getFecha().isBefore(desde) && !r.getFecha().isAfter(hasta))
-                    .sorted((a,b)-> a.getFecha().compareTo(b.getFecha()))
-                    .toList();
+            jornadas = registroRepo.findByFechaBetweenOrderByFechaAsc(desde, hasta);
             viajes = viajeRepo.findByFechaBetweenOrderByFechaAsc(desde, hasta);
         } else {
             jornadas = registroRepo.findByUsuarioIdAndFechaBetweenOrderByFechaAsc(usuarioId, desde, hasta);

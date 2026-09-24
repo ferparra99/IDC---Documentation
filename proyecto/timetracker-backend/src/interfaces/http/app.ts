@@ -9,7 +9,11 @@ export function crearApp(): Express {
   const app = express();
 
   app.use(helmet());
-  app.use(cors());
+  const corsOrigins = process.env.CORS_ORIGIN ?? "*";
+  const corsOptions: cors.CorsOptions = corsOrigins.trim() === "*"
+    ? { origin: "*" }
+    : { origin: corsOrigins.split(",").map(s => s.trim()), credentials: false };
+  app.use(cors(corsOptions));
   app.use(express.json());
   app.use(requestLogger);
 

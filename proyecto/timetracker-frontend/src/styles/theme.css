@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
   --bg-base: #1C1C22;
@@ -44,7 +44,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   background: var(--bg-base);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -58,8 +58,8 @@ a { color: var(--accent-primary); }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* tipeo horas mono */
-.mono { font-family: 'JetBrains Mono', monospace; }
+/* tipeo horas mono - ahora también Outfit para consistencia */
+.mono { font-family: 'Outfit', monospace; }
 
 /* scrollbar sutil */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
