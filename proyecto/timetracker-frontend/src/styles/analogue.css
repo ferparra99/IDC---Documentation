@@ -1,0 +1,9 @@
+/* Analogue typography only — fonds/colores/tamaños restaurados a IDC */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500&display=swap');
+
+:root {
+  --font-circularxx: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+* { font-feature-settings: "ss08" on; }
+body { font-family: var(--font-circularxx); }

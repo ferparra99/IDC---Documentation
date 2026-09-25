@@ -11,7 +11,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import com.idc.timetracker.modules.user.UsuarioRepository;
+
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -20,6 +24,7 @@ import java.util.UUID;
 public class ReportController {
 
     private final ReportService reportService;
+    private final UsuarioRepository usuarioRepository;
 
     private boolean isAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -35,7 +40,8 @@ public class ReportController {
     public ResponseEntity<byte[]> excel(@AuthenticationPrincipal String userId,
                                         @RequestParam String desde,
                                         @RequestParam String hasta,
-                                        @RequestParam(required = false) String usuarioId) {
+                                        @RequestParam(required = false) String usuarioId,
+                                        @RequestParam(required = false) String usuarioIds) {
         if (desde == null || hasta == null) {
             throw new ValidacionException("Los parámetros 'desde' y 'hasta' (YYYY-MM-DD) son obligatorios.");
         }
@@ -43,32 +49,66 @@ public class ReportController {
         LocalDate h = LocalDate.parse(hasta);
 
         boolean admin = isAdmin();
-        UUID effectiveId;
-        boolean adminView = false;
+        List<UUID> objetivoIds = new ArrayList<>();
 
-        if (usuarioId != null && !usuarioId.isBlank()) {
+        // usuarioIds tiene prioridad (multi-selección)
+        if (usuarioIds != null && !usuarioIds.isBlank()) {
+            String[] parts = usuarioIds.split(",");
+            for (String p : parts) {
+                String t = p.trim();
+                if (t.isEmpty()) continue;
+                UUID uid = UUID.fromString(t);
+                if (!uid.toString().equals(userId) && !admin) {
+                    throw new NoAutorizadoException("No puedes exportar el reporte de otro usuario.");
+                }
+                objetivoIds.add(uid);
+            }
+            if (objetivoIds.isEmpty()) throw new ValidacionException("usuarioIds vacío");
+        } else if (usuarioId != null && !usuarioId.isBlank()) {
             if (!usuarioId.equals(userId) && !admin) {
                 throw new NoAutorizadoException("No puedes exportar el reporte de otro usuario.");
             }
-            effectiveId = UUID.fromString(usuarioId);
-            // admin pide reporte de un usuario específico -> no es vista consolidada
-            adminView = false;
+            objetivoIds.add(UUID.fromString(usuarioId));
         } else {
+            // sin filtro: admin -> consolidado (todos), empleado -> propio
             if (admin) {
-                // consolidado: no filtrar por usuario
-                effectiveId = UUID.fromString(userId); // dummy, will be ignored cuando adminView true
-                adminView = true;
+                // legacy consolidado
+                UUID effectiveId = UUID.fromString(userId);
+                byte[] bytes = reportService.generarExcel(effectiveId, d, h, true);
+                String filename = "reporte_" + desde + "_a_" + hasta + ".xlsx";
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                        .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                        .body(bytes);
             } else {
-                effectiveId = UUID.fromString(userId);
-                adminView = false;
+                objetivoIds.add(UUID.fromString(userId));
             }
         }
 
-        byte[] bytes = reportService.generarExcel(effectiveId, d, h, adminView);
-        String filename = "reporte_" + desde + "_a_" + hasta + ".xlsx";
+        // si llegó aquí con objetivoIds, usar flujo multi (single también via generarExcelForUsuarios)
+        byte[] bytes = reportService.generarExcelForUsuarios(objetivoIds, d, h);
+        String filename = "reporte_" + desde + "_a_" + hasta;
+        if (objetivoIds.size() > 1) filename += "_" + objetivoIds.size() + "usuarios";
+        filename += ".xlsx";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(bytes);
+    }
+
+    @GetMapping("/usuarios")
+    public ResponseEntity<java.util.Map<String, Object>> listarUsuariosParaReporte() {
+        if (!isAdmin()) throw new NoAutorizadoException("Solo administradores pueden listar usuarios para reportes");
+        var usuarios = usuarioRepository.findAll();
+        List<java.util.Map<String, String>> res = usuarios.stream()
+                .map(u -> java.util.Map.of(
+                        "id", u.getId().toString(),
+                        "nombre", u.getNombre() != null ? u.getNombre() : "",
+                        "email", u.getEmail() != null ? u.getEmail() : "",
+                        "rol", u.getRol() != null ? u.getRol().name() : ""
+                ))
+                .toList();
+        // envuelto en {data: [...]} para que api/client.ts:81 (body.data) funcione
+        return ResponseEntity.ok(java.util.Map.of("data", res));
     }
 }
